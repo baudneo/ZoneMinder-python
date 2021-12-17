@@ -195,25 +195,12 @@ class ZMSession:
 
 
         elif self.type == 'api':
+            from src.ZMAPI import ZMApi
             self.user = options.user
             self.port = options.port or 80
             self.password = options.password
             self.host = options.host
-            self.api_sess = Session()
-
-    def get(self, params: dict, **kwargs) -> dict:
-        """Request information from ZM, this will use either API or SQL calls depending on the type of session
-
-        params: dict - {
-                'type': event, monitor, config, zone, state.
-                'id': Event ID or Monitor ID.
-                'name': Monitor, Zone or State name.
-                'start_time': If requesting events, the time of the event
-                'end_time':
-
-        }
-
-        """
+            self.api_sess = ZMApi(options)
 
     def read_zm_confs(self, files: list):
         config_file = ConfigParser(interpolation=None, inline_comment_prefixes='#')

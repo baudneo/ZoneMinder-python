@@ -1,20 +1,18 @@
-import collections
+import logging
 import warnings
-from typing import Optional, Dict, List, Any, Union
+from datetime import datetime
 from string import ascii_uppercase
+from typing import Optional, Dict, List, Any, Union
 
 import dateparser as dateparser
 import sqlalchemy.orm
-from mysqlx import Table
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Query, Session
-
-import logging
+from sqlalchemy.orm import Query
 
 import src.dataclasses
 from src.ZMSession import ZMSession
-from src.models import DBOptions, APIOptions
 from src.dataclasses import ZMEvent
+from src.models import DBOptions, APIOptions
 
 logger = logging.getLogger('ZM')
 logger.setLevel(logging.DEBUG)
@@ -27,6 +25,7 @@ logger.addHandler(console_handler)
 
 
 def str2bool(v: Optional[Union[str, bool]]) -> Optional[Union[str, bool]]:
+    """Turns a string into a boolean"""
     if v is None:
         return False
     if isinstance(v, bool):
@@ -103,17 +102,18 @@ class ZoneMinder:
          must pass options configured for an API connection or a remote DB connection.
 
         options:
-          - host: ZoneMinder DB host
-          - port: ZoneMinder port for API or DB (Default 80 for API 3306 for DB)
-          - user: ZoneMinder API/DB user (If using Authorization)
-          - password: ZoneMinder API/DB password (If using Authorization)
-          - database: ZoneMinder DB name
-          - driver: ZoneMinder database driver (Default "mysql+mysqlconnector")
-          - api_url: ZoneMinder API URL ("http://zm.EXAMPLE.com/zm/api/") REQUIRED for API
-          - portal_url: ZoneMinder Portal URL ("http://zm.EXAMPLE.com/zm/")
+          - host (str): ZoneMinder DB host
+          - port (str | int): ZoneMinder port for API or DB (Default 80 for API 3306 for DB)
+          - user (str): ZoneMinder API/DB user (If using Authorization)
+          - password (str): ZoneMinder API/DB password (If using Authorization)
+          - database (str): ZoneMinder DB name
+          - driver (str): ZoneMinder database driver (Default "mysql+mysqlconnector")
+          - api_url (str): ZoneMinder API URL ("http://zm.EXAMPLE.com/zm/api/") REQUIRED for API
+          - portal_url (str): ZoneMinder Portal URL ("http://zm.EXAMPLE.com/zm/")
 
-          - strict_ssl: If False, allows self-signed certificates.
-          - conf_path: Where the ZM configuration directory is (Also set by PYZM_CONF_PATH environment variable) [Default: /etc/zm]
+          - strict_ssl (bool): If False, allows self-signed certificates.
+          - conf_path (str): Where the ZM configuration directory is (Also set by PYZM_CONF_PATH environment variable) [Default: /etc/zm]
+          - basic_auth (bool): For API session, use basic auth if using auth.
 
         :param options: (dict) containing options to connect via API or DB.
         :param force_api: (bool) - Force using the API session (REQUIRED: 'host' or 'api_url').
@@ -128,7 +128,7 @@ class ZoneMinder:
         self.api_opts: Optional[Dict] = None
         self.Events = []
         self.session: ZMSession
-        if self.options:
+        if self.options is not None:
             self.db_opts = DBOptions(**options)
             self.api_opts = APIOptions(**options)
         logger.debug(f"ZoneMinder-python instantiated with options: {repr(options)}")
@@ -152,10 +152,10 @@ class ZoneMinder:
         else:
             # no force_*
             if (not options) or (options and not options.get('api_url')):
-                logger.debug(f"It seems, there are not the correct options for API, using SQL session")
+                logger.debug(f'There are the correct options for an SQL session, initializing...')
                 self._init_db()
             elif options and options.get('api_url'):
-                logger.debug(f'It seems that there are the correct options for an API session')
+                logger.debug(f'There are the correct options for an API session, initializing...')
                 self._init_api()
 
     def get_events(self, options=None) -> List[Optional[ZMEvent]]:
@@ -173,19 +173,43 @@ class ZoneMinder:
                         - 'max_alarmed_frames': int # maximum alarmed frames
                         - 'object_only': boolean # if True will only pick events that have detected objects
 
+                        # API only options
+                        - raw_filter: str # raw url_filter string to use
+                        - max_events: int # Maximum number of events to return [Default: 100]
+                        - limit: int # alias for max_events
+
 
         """
         if options is None:
             options = {}
-        # Todo: make instantiating do the work
-        mutate = Events(options=options, session=self.session, session_options=self.session.options).work()
+        events: list = Events(options=options, session=self.session, session_options=self.session.options).work()
         seen = []
-        if mutate:
+        if events:
             final = ZMEvent()
-            for event in mutate:
+            for event in events:
                 if self.session.type == 'api':
-                    print(f"{event = }")
-                    exit(1)
+                    event: dict
+                    skip = ('StartTime', 'EndTime', 'MaxScoreFrameId', 'FileSystemPath')
+                    # int_ = ('Id', 'MonitorId', 'StorageId', 'SecondaryStorageId', 'Width', 'Height', 'Frames'
+                    #         'AlarmFrames', 'SaveJPEGs', 'TotScore', 'AvgScore', 'MaxScore', 'Archived', 'Videoed',
+                    #         'Uploaded', 'Emailed', 'Messaged', 'Executed', 'StateId', 'DiskSpace', 'MaxScoreFrameId')
+                    eid = int(event['Event']['Id'])
+                    if eid not in seen:
+                        seen.append(eid)
+
+                        # for attr in dir(event):
+                        for k, v in event['Event'].items():
+                            k: str
+                            if k in skip:
+                                continue
+                            # elif k == 'Length':
+                            #     v = float(v)
+                            # elif k.endswith('DateTime'):
+                            #     v = datetime.strptime(v, '%Y-%m-%d %H:%M:%S')
+
+                            setattr(final, k, v)
+                        self.Events.append(final)
+
 
                 if self.session.type == 'db':
                     if event.Id not in seen:
@@ -198,13 +222,47 @@ class ZoneMinder:
         return self.Events
 
 
+class Monitors:
+    def __init__(
+            self,
+            options: Optional[Dict] = None,
+            session: ZMSession = None,
+            session_options: Optional[Union[DBOptions, APIOptions]] = None,
+    ):
+        """Returns list of monitors. Given monitors are fairly static, maintains a cache and returns from cache on subsequent calls.
+
+                    Args:
+                        options (dict, optional): Available fields::
+
+                            {
+                                'force_reload': boolean # if True refreshes monitors
+
+                            }
+
+                Returns:
+                    list of :class:`pyzm.helpers.Monitor`: list of monitors
+                """
+        if options is None:
+            options = {}
+        if options.get("force_reload") or not self.Monitors:
+            self.Monitors = Monitors()
+        return self.Monitors
+
+
+class Monitors:
+
+
+
+
+
+
 class Events:
     def __init__(
             self,
             options: Optional[Dict] = None,
             session: ZMSession = None,
-            no_warn=False,
-            session_options: Optional[Union[DBOptions, APIOptions]] = None
+            session_options: Optional[Union[DBOptions, APIOptions]] = None,
+            no_warn = False,
     ):
         """
         Used internally to process Events
@@ -222,6 +280,11 @@ class Events:
               - min_alarmed_frames: int # minimum alarmed frames
               - max_alarmed_frames: int # maximum alarmed frames
               - object_only: boolean # if True will only pick events that have detected objects
+
+              # API only options
+              - raw_filter: str # raw url_filter string to use
+              - max_events: int # Maximum number of events to return [Default: 100]
+              - limit: int # alias for max_events
 
         """
         self.session_options: Union[DBOptions, APIOptions] = session_options
@@ -409,8 +472,8 @@ class Events:
             self.events = []
             while True:
                 try:
-                    r = self.session.api_sess.get(url=url, params=params)
-                    # r = self.api.make_request(url=url, query=params)
+                    # r = self.session.api_sess.get(url=url, params=params)
+                    r = self.session.api_sess.make_request(url=url, query=params)
                 except Exception as ex:
                     logger.error(f"Events: error making request for events -> {url}")
                     raise ex
@@ -425,5 +488,3 @@ class Events:
                         break
                     params['page'] += 1
             return self.events
-
-        self.events: List = []

@@ -1,42 +1,150 @@
 from dataclasses import dataclass, field
 from typing import Optional
 
-from sqlalchemy import Table, Enum, DateTime
+from sqlalchemy import Table, Enum, DateTime, Numeric
+
+
+@dataclass
+class ZMMonitor:
+    """A dataclass to hold ZoneMinder Monitor information - matches DB Column Names"""
+    Id: int = None
+    Name: str = None
+    Notes: str = None
+    ServerId: int = None
+    StorageId: int = None
+    ManufacturerId: int = None
+    ModelId: int = None
+    Type: Enum = None
+    Function: Enum = None
+    Enabled: int = None
+    DecodingEnabled: int = None
+    LinkedMonitors: str = None
+    Triggers: str = None
+    EventStartCommand: str = None
+    EventEndCommand: str = None
+    ONVIF_URL: str = None
+    ONVIF_Username: str = None
+    ONVIF_Password: str = None
+    ONVIF_Options: str = None
+    Device: str = None
+    Channel: int = None
+    Format: int = None
+    V4LMultiBuffer: int = None
+    V4LCapturePerFrame: int = None
+    Protocol: str = None
+    Method: str = None
+    Host: str = None
+    Post: str = None
+    SubPath: str = None
+    Path: str = None
+    SecondPath: str = None
+    Options: str = None
+    User: str = None
+    Pass: str = None
+    Width: int = None
+    Height: int = None
+    Colors: int = None
+    Palette: int = None
+    Orientation: Enum = None
+    Deinterlacing: int = None
+    DecoderHWAccelName: str = None
+    DecoderHWAccelDevice: str = None
+    SaveJPEGs: int = None
+    VideoWriter: int = None
+    OutputCodec: int = None
+    Encoder: str = None
+    OutputContainer: Enum = None
+    EncoderParameters: str = None
+    RecordAudio: int = None
+    RTSPDescribe: int = None
+    Brightness: int = None
+    Contrast: int = None
+    Hue: int = None
+    Colour: int = None
+    EventPrefix: str = None
+    LabelFormat: str = None
+
+    LabelX: int = None
+    LabelY: int = None
+    LabelSize: int = None
+    ImageBufferCount: int = None
+    MaxImageBufferCount: int = None
+    WarmupCount: int = None
+    PreEventCount: int = None
+    PostEventCount: int = None
+    StreamReplayBuffer: int = None
+    AlarmFrameCount: int = None
+    SectionLength: int = None
+    MinSectionLength: int = None
+    FrameSkip: int = None
+    MotionFrameSkip: int = None
+    AnalysisFPSLimit: Numeric = Numeric
+    AnalysisUpdateDelay: int = None
+    MaxFPS: float = None
+    AlarmMaxFPS: float = None
+    FPSReportInterval: int = None
+    RefBlendPerc: int = None
+    AlarmRefBlendPerc: int = None
+    Controllable: int = None
+    ControlId: int = None
+    ControlDevice: str = None
+    ControlAddress: str = None
+    AutoStopTimeout: float = None
+    TrackMotion: int = None
+    TrackDelay: int = None
+    ReturnLocation: int = None
+    ReturnDelay: int = None
+    ModectDuringPTZ: int = None
+    DefaultRate: int = None
+    DefaultScale: int = None
+    DefaultCodec: Enum = None
+    SignalCheckPoints: int = None
+    SignalCheckColour: str = None
+    WebColour: str = None
+    Exif: int = None
+    Sequence: int = None
+    ZoneCount: int = None
+    Refresh: int = None
+    Latitude: float = None
+    Longitude: float = None
+    RTSPServer: int = None
+    RTSPStreamName: str = None
+    Importance: Enum = None
 
 
 @dataclass
 class ZMEvent:
-    """A dataclass to hold ZoneMinder Event data - matches DB Column Names"""
-    Id: int = field(default_factory=int)
-    MonitorId: int = field(default_factory=int)
-    StorageId: int = field(default_factory=int)
-    SecondaryStorageId: int = field(default_factory=int)
-    Name: str = field(default_factory=str)
-    Cause: str = field(default_factory=str)
-    StartDateTime: DateTime = field(default_factory=DateTime)
-    EndDateTime: DateTime = field(default_factory=DateTime)
-    Width: int = field(default_factory=int)
-    Height: int = field(default_factory=int)
-    Length: float = field(default_factory=float)
-    Frames: int = field(default_factory=int)
-    AlarmFrames: int = field(default_factory=int)
-    DefaultVideo: str = field(default_factory=str)
-    SaveJPEGs: int = field(default_factory=int)
-    TotScore: int = field(default_factory=int)
-    AvgScore: int = field(default_factory=int)
-    MaxScore: int = field(default_factory=int)
-    Archived: int = field(default_factory=int)
-    Videoed: int = field(default_factory=int)
-    Uploaded: int = field(default_factory=int)
-    Emailed: int = field(default_factory=int)
-    Messaged: int = field(default_factory=int)
-    Executed: int = field(default_factory=int)
-    Notes: str = field(default_factory=str)
-    StateId: int = field(default_factory=int)
-    Orientation: Enum = field(default_factory=Enum)
-    DiskSpace: int = field(default_factory=int)
-    Scheme: Enum = field(default_factory=Enum)
-    Locked: int = field(default_factory=int)
+    """A dataclass to hold ZoneMinder Event information - matches DB Column Names"""
+    Id: int = None
+    MonitorId: int = None
+    StorageId: int = None
+    SecondaryStorageId: int = None
+    Name: str = None
+    Cause: str = None
+    StartDateTime: DateTime = None
+    EndDateTime: DateTime = None
+    Width: int = None
+    Height: int = None
+    Length: float = None
+    Frames: int = None
+    AlarmFrames: int = None
+    DefaultVideo: str = None
+    SaveJPEGs: int = None
+    TotScore: int = None
+    AvgScore: int = None
+    MaxScore: int = None
+    Archived: int = None
+    Videoed: int = None
+    Uploaded: int = None
+    Emailed: int = None
+    Messaged: int = None
+    Executed: int = None
+    Notes: str = None
+    StateId: int = None
+    Orientation: Enum = None
+    DiskSpace: int = None
+    Scheme: Enum = None
+    Locked: int = None
     
     
 @dataclass
