@@ -1,20 +1,20 @@
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Table, Enum
+from sqlalchemy import Table, Enum, DateTime
 
 
 @dataclass
 class ZMEvent:
+    """A dataclass to hold ZoneMinder Event data - matches DB Column Names"""
     Id: int = field(default_factory=int)
     MonitorId: int = field(default_factory=int)
     StorageId: int = field(default_factory=int)
     SecondaryStorageId: int = field(default_factory=int)
     Name: str = field(default_factory=str)
     Cause: str = field(default_factory=str)
-    StartDateTime: datetime = field(default_factory=datetime)
-    EndDateTime: datetime = field(default_factory=datetime)
+    StartDateTime: DateTime = field(default_factory=DateTime)
+    EndDateTime: DateTime = field(default_factory=DateTime)
     Width: int = field(default_factory=int)
     Height: int = field(default_factory=int)
     Length: float = field(default_factory=float)

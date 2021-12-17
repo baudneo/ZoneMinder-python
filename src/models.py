@@ -12,9 +12,10 @@ class DBOptions(BaseModel):
 
 
 class APIOptions(BaseModel):
-    port: int
-    user: str
-    password: str
-    strict_ssl: bool
-    api_url: str
-    portal_url: str
+    host: str = None
+    port: int = None
+    user: str = None
+    password: str = None
+    strict_ssl: bool = None
+    api_url: str = None
+    portal_url: str = None
