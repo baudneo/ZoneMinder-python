@@ -186,7 +186,7 @@ class ZMSession:
                 self.auto_map: automap_base = Base(metadata=self.metadata)
                 self.auto_map.prepare(engine)
                 self.classes = self.auto_map.classes
-                self.db = ZMDB()
+                self.db: ZMDB = ZMDB()
                 from string import ascii_uppercase
                 for attr in dir(self.auto_map.classes):
                     if attr.startswith('__') or attr[0] not in ascii_uppercase:

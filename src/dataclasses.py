@@ -5,6 +5,15 @@ from sqlalchemy import Table, Enum, DateTime, Numeric
 
 
 @dataclass
+class ZMState:
+    """A dataclass to hold ZoneMinder State information - matches DB Column names."""
+    Id: int = None
+    Name: str = None
+    Definition: str = None
+    IsActive: int = None
+
+
+@dataclass
 class ZMMonitor:
     """A dataclass to hold ZoneMinder Monitor information - matches DB Column Names"""
     Id: int = None
@@ -63,7 +72,6 @@ class ZMMonitor:
     Colour: int = None
     EventPrefix: str = None
     LabelFormat: str = None
-
     LabelX: int = None
     LabelY: int = None
     LabelSize: int = None
@@ -110,6 +118,12 @@ class ZMMonitor:
     RTSPServer: int = None
     RTSPStreamName: str = None
     Importance: Enum = None
+
+    def __len__(self):
+        return len(self.__dict__)
+
+    def __iter__(self):
+        return iter(self.__dict__.items())
 
 
 @dataclass

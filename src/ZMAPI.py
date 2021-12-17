@@ -360,7 +360,7 @@ If you do not supply it an event_id it will use the global event id.
                 url += f'{q_char}{self.legacy_credentials}'
 
         try:
-            from src.ZoneMinder import str2bool
+            from src.utils import str2bool
             portal = self.portal_url
             if self.api_url and not portal:
                 portal = self.options.api_url[:-4]
