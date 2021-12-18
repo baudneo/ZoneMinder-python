@@ -4,9 +4,9 @@ from typing import Optional, Dict, List
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.ZMClasses import Events, Monitors
+from src.ZMClasses import Events, Monitors, States, Zones, Configs
 from src.ZMSession import ZMSession
-from src.dataclasses import ZMEvent, ZMMonitor
+from src.dataclasses import ZMEvent, ZMMonitor, ZMState, ZMZone, ZMConfig
 from src.models import DBOptions, APIOptions
 
 logger = logging.getLogger('ZM')
@@ -61,6 +61,7 @@ class MySQLHandler(logging.Handler):
             logger.error(f'Error writing to database: {e}')
 
 
+
 class ZoneMinder:
     def _init_api(self):
         logger.debug(f"ZoneMinder Session being instantiated with API options: {self.api_opts}")
@@ -103,6 +104,9 @@ class ZoneMinder:
         self.api_opts: Optional[Dict] = None
         self.Events: list = []
         self.Monitors: list = []
+        self.States: list = []
+        self.Zones: list = []
+        self.Configs: list = []
 
         self.session: ZMSession
         if self.options is not None:
@@ -235,3 +239,88 @@ class ZoneMinder:
         else:
             raise ValueError("Invalid method: {}".format(method))
 
+
+    def configs(self, method=None, options=None) -> Optional[List[Optional[ZMConfig]]]:
+        """Interface with ZoneMinder 'Configs' Table. 'get' to query, 'set' to manipulate objects."""
+        if options is None:
+            options = {}
+        if not method:
+            method = 'get'
+
+        if method == 'get':
+            configs: list = Configs(session=self.session, session_options=self.session.options)
+            final: ZMConfig = ZMConfig()
+            for config in configs:
+                if self.session.type == 'api':
+                    config: dict
+                    for k, v in config['Config'].items():
+                        setattr(final, k, v)
+                elif self.session.type == 'db':
+                    config: ZMConfig
+                    for attr in dir(config):
+                        if attr.startswith('_') or not attr[0].isupper():
+                            continue
+                        setattr(final, attr, getattr(config, attr))
+                self.Configs.append(final)
+            return self.Configs
+        elif method == 'set':
+            return None
+        else:
+            raise ValueError("Invalid method: {}".format(method))
+
+    def zones(self, method=None, options=None) -> Optional[List[Optional[ZMZone]]]:
+        """Interface with ZoneMinder 'Zones' Table. 'get' to query, 'set' to manipulate objects."""
+        if options is None:
+            options = {}
+        if not method:
+            method = 'get'
+
+        if method == 'get':
+            zones: list = Zones(session=self.session, session_options=self.session.options)
+            final: ZMZone = ZMZone()
+            for zone in zones:
+                if self.session.type == 'api':
+                    zone: dict
+                    for k, v in zone['Zone'].items():
+                        setattr(final, k, v)
+                elif self.session.type == 'db':
+                    zone: ZMZone
+                    for attr in dir(zone):
+                        if attr.startswith('_') or not attr[0].isupper():
+                            continue
+                        setattr(final, attr, getattr(zone, attr))
+                self.Zones.append(final)
+            return self.Zones
+        elif method == 'set':
+            return None
+        else:
+            raise ValueError("Invalid method: {}".format(method))
+
+    def states(self, method=None, options=None) -> Optional[List[Optional[ZMState]]]:
+        """Interface with ZoneMinder 'States' Table. 'get' to query, 'set' to manipulate objects."""
+        if options is None:
+            options = {}
+        if not method:
+            method = 'get'
+
+        if method == 'get':
+            states: list = States(session=self.session, session_options=self.session.options)
+            final: ZMState = ZMState()
+            for state in states:
+                if self.session.type == 'api':
+                    state: dict
+                    for k, v in state['State'].items():
+                        setattr(final, k, v)
+
+                elif self.session.type == 'db':
+                    state: ZMState
+                    for attr in dir(state):
+                        if attr.startswith('_') or not attr[0].isupper():
+                            continue
+                        setattr(final, attr, getattr(state, attr))
+                self.States.append(final)
+            return self.States
+        elif method == 'set':
+            return None
+        else:
+            raise ValueError("Invalid method: {}".format(method))

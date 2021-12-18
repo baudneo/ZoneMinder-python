@@ -5,6 +5,54 @@ from sqlalchemy import Table, Enum, DateTime, Numeric
 
 
 @dataclass
+class ZMConfig:
+    Id: int = None
+    Name: str = None
+    Value: str = None
+    Type: str = None
+    DefaultValue: str = None
+    Hint: str = None
+    Pattern: str = None
+    Format: str = None
+    Prompt: str = None
+    Help: str = None
+    Category: str = None
+    ReadOnly: int = None
+    Requires: str = None
+
+
+@dataclass
+class ZMZone:
+    """
+    ZoneMinder Zones
+    """
+    Id: int = None
+    MonitorId: int = None
+    Name: str = None
+    Type: Enum = None
+    Units: Enum = None
+    NumCoords: int = None
+    Coords: str = None
+    Area: int = None
+    AlarmRGB: int = None
+    CheckMethod: Enum = None
+    MinPixelThreshold: int = None
+    MinAlarmPixels: int = None
+    MaxPixelThreshold: int = None
+    MaxAlarmPixels: int = None
+    FilterX: int = None
+    FilterY: int = None
+    MinFilterPixels: int = None
+    MaxFilterPixels: int = None
+    MinBlobPixels: int = None
+    MaxBlobPixels: int = None
+    MaxBlobs: int = None
+    MinBlobs: int = None
+    OverloadFrames: int = None
+    ExtendAlarmFrames: int = None
+
+
+@dataclass
 class ZMState:
     """A dataclass to hold ZoneMinder State information - matches DB Column names."""
     Id: int = None

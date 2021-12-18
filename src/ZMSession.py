@@ -140,15 +140,10 @@ class ZMSession:
                     files.insert(0, f"{db_config['conf_path']}/zm.conf")
                 conf_data = self.read_zm_confs(files)
             else:
-                logger.warning(f"The ZM configuration path 'conf_path' ({db_config['conf_path']}) does not exist!")
-                logger.debug(f"Searching for 'zm.conf' system wide...")
-                from os import walk
-                for root, dirs, files in walk('/'):
-                    if 'zm.conf' in files:
-                        files.append(str(Path(root) / 'zm.conf'))
-                logger.debug(f"Files returned from system wide search for 'zm.conf': {files}")
-                conf_data = self.read_zm_confs(files)
-
+                logger.warning(f"Use the option 'conf_path' or set the environment variable PYZM_CONF_PATH to specify "
+                               f"the path to the ZM configuration files")
+                raise FileNotFoundError(f"The ZM configuration path 'conf_path' ({db_config['conf_path']})"
+                                        f" does not exist!")
             if conf_data:
                 if not db_config.get('dbuser'):
                     db_config['dbuser'] = conf_data.get('ZM_DB_USER')

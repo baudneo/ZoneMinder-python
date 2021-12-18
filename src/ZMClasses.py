@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, Query
 
 from src.ZMSession import ZMSession
 from src.utils import str2bool
-from src.dataclasses import ZMEvent
+from src.dataclasses import ZMEvent, ZMState, ZMZone, ZMConfig
 from src.models import DBOptions, APIOptions
 
 logger = logging.getLogger('ZMClasses')
@@ -20,12 +20,35 @@ console_handler.setFormatter(console_fmt)
 logger.addHandler(console_handler)
 
 
+def Configs(
+            session: ZMSession = None,
+            session_options: Optional[Union[DBOptions, APIOptions]] = None,
+):
+    configs: list = []
+    if session and session.type == 'db':
+        logger.info(f"Retrieving 'Configs' via SQL")
+        db_sess: Optional[Session] = None
+        ret = None
+        with session.db_sess() as db_sess:
+            configs_dataclass: ZMConfig = session.db.Configs
+            ret = db_sess.query(configs_dataclass).all()
+
+    elif session and session.type == 'api':
+        logger.info(f"Retrieving 'Configs' via API")
+        url = f"{session_options.api_url}/configs.json"
+        r = session.api_sess.make_request(url=url)
+        api_configs = r.get('configs')
+        ret = []
+        for config in api_configs:
+            ret.append(config)
+    return ret
 
 def Monitors(
             session: ZMSession = None,
             session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     monitors: list = []
+    ret = None
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Monitors' via SQL")
         db_sess: Optional[Session] = None
@@ -33,7 +56,6 @@ def Monitors(
         with session.db_sess() as db_sess:
             mons: ZMEvent = session.db.Monitors
             ret = db_sess.query(mons).all()
-        return ret
 
     elif session and session.type == 'api':
         logger.info(f"Retrieving 'Monitors' via API")
@@ -43,8 +65,58 @@ def Monitors(
         ret = []
         for mon in mons:
             ret.append(mon)
+    return ret
+
+
+def Zones(
+        session: ZMSession = None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
+):
+    zones: list = []
+    ret = None
+    if session and session.type == 'db':
+        logger.info(f"Retrieving 'Zones' via SQL")
+        db_sess: Optional[Session] = None
+        ret = None
+        with session.db_sess() as db_sess:
+            db_zones: ZMZone = session.db.Zones
+            ret = db_sess.query(db_zones).all()
+
+    elif session and session.type == 'api':
+        logger.info(f"Retrieving 'Zones' via API")
+        url = f"{session_options.api_url}/zones/index.json"
+        r = session.api_sess.make_request(url=url)
+        api_zones = r.get('zones')
+        ret = []
+        for zone in api_zones:
+            ret.append(zone)
+    return ret
+
+
+def States(
+            options: Optional[Dict] = None,
+            session: ZMSession = None,
+            session_options: Optional[Union[DBOptions, APIOptions]] = None,
+):
+    states: list = []
+    if session and session.type == 'db':
+        logger.info(f"Retrieving 'States' via SQL")
+        db_sess: Optional[Session] = None
+        ret = None
+        with session.db_sess() as db_sess:
+            states_dataclass: ZMState = session.db.States
+            ret = db_sess.query(states_dataclass).all()
         return ret
 
+    elif session and session.type == 'api':
+        logger.info(f"Retrieving 'States' via API")
+        url = f"{session_options.api_url}/states.json"
+        r = session.api_sess.make_request(url=url)
+        api_states = r.get('states')
+        ret = []
+        for state in api_states:
+            ret.append(state)
+        return ret
 
 
 def Events(
