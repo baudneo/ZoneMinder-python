@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, Query
 
 from src.ZMSession import ZMSession
 from src.utils import str2bool
-from src.dataclasses import ZMEvent, ZMState, ZMZone, ZMConfig
+from src.dataclasses import ZMEvent, ZMState, ZMZone, ZMConfig, ZMStorage
 from src.models import DBOptions, APIOptions
 
 logger = logging.getLogger('ZMClasses')
@@ -30,7 +30,7 @@ def Servers(
         db_sess: Optional[Session] = None
         ret = None
         with session.db_sess() as db_sess:
-            if options.get()
+            # if options.get('')
             servers_dataclass: ZMState = session.db.Servers
             ret = db_sess.query(servers_dataclass).all()
 
@@ -139,6 +139,7 @@ def TriggersX10(
 
 def Storage(
         session: ZMSession = None,
+        options=None,
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     storage: list = []
@@ -147,9 +148,25 @@ def Storage(
         db_sess: Optional[Session] = None
         ret = None
         with session.db_sess() as db_sess:
-            storage_dataclass: ZMState = session.db.Storage
-            ret = db_sess.query(storage_dataclass).all()
-            print(f"{len(ret) = }")
+            db_storage: ZMStorage = session.db.Storage
+            ret = db_sess.query(db_storage)
+            from sqlalchemy import desc, asc
+            if options.get('id'):
+                ret = ret.filter(db_storage.Id == options.get('id'))
+            if options.get('name'):
+                ret = ret.filter(db_storage.Name == options.get('name'))
+            if options.get('path'):
+                ret = ret.filter(db_storage.Path == options.get('path'))
+            if options.get('server_id'):
+                ret = ret.filter(db_storage.ServerId == options.get('server_id'))
+            if options.get('used_disk_space', {}).get('descending'):
+                ret = ret.order_by(desc(db_storage.DiskSpace))
+            if options.get('used_disk_space', {}).get('ascending'):
+                ret = ret.order_by(asc(db_storage.DiskSpace))
+            if options.get('enabled'):
+                ret = ret.filter(db_storage.Enabled == 1)
+            ret = ret.all()
+
 
     elif session and session.type == 'api':
         logger.info(f"Retrieving 'Storage' via API")
@@ -164,6 +181,7 @@ def Storage(
 
 def Configs(
             session: ZMSession = None,
+            options=None,
             session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     configs: list = []
@@ -173,8 +191,16 @@ def Configs(
         ret = []
         with session.db_sess() as db_sess:
             configs_dataclass: ZMConfig = session.db.Config
-            ret = db_sess.query(configs_dataclass).all()
-
+            ret = db_sess.query(configs_dataclass)
+            if options.get('id'):
+                ret = ret.filter(configs_dataclass.Id == options.get('id'))
+            if options.get('name'):
+                ret = ret.filter(configs_dataclass.Name == options.get('name'))
+            if options.get('category'):
+                ret = ret.filter(configs_dataclass.Category == options.get('category'))
+            if options.get('type'):
+                ret = ret.filter(configs_dataclass.Type == options.get('type'))
+            ret = ret.all()
     elif session and session.type == 'api':
         logger.info(f"Retrieving 'Configs' via API")
         url = f"{session_options.api_url}/configs.json"
@@ -211,6 +237,7 @@ def Monitors(
 
 def Zones(
         session: ZMSession = None,
+        options: dict = None,
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     zones: list = []
@@ -221,7 +248,15 @@ def Zones(
         ret = None
         with session.db_sess() as db_sess:
             db_zones: ZMZone = session.db.Zones
-            ret = db_sess.query(db_zones).all()
+            ret = db_sess.query(db_zones)
+            if options.get('id'):
+                ret = ret.filter(db_zones.Id == options.get('id'))
+            if options.get('monitor_id'):
+                ret = ret.filter(db_zones.MonitorId == options.get('monitor_id'))
+            if options.get('name'):
+                ret = ret.filter(db_zones.Name == options.get('name'))
+            if options.get('type'):
+                ret = ret.filter(db_zones.Type == options.get('type'))
 
     elif session and session.type == 'api':
         logger.info(f"Retrieving 'Zones' via API")
@@ -243,10 +278,23 @@ def States(
     if session and session.type == 'db':
         logger.info(f"Retrieving 'States' via SQL")
         db_sess: Optional[Session] = None
-        ret = None
+        ret: Optional[Query] = None
         with session.db_sess() as db_sess:
-            states_dataclass: ZMState = session.db.States
-            ret = db_sess.query(states_dataclass).all()
+            # Id: int = None
+            # Name: str = None
+            # Definition: str = None
+            # IsActive: int = None
+            db_states: ZMState = session.db.States
+            ret = db_sess.query(db_states)
+            if options.get('id'):
+                ret = ret.filter(db_states.Id == options.get('id'))
+            if options.get('name'):
+                ret = ret.filter(db_states.Name == options.get('name'))
+            # if options.get('Definition'):
+            #     ret = ret.filter(db_states.Definition == options.get('Definition'))
+            if options.get('current'):
+                ret = ret.filter(db_states.IsActive == 1)
+
         return ret
 
     elif session and session.type == 'api':
@@ -321,7 +369,7 @@ def Events(
 
             if eid:
                 logger.debug(f"Using EventId to filter SQL")
-                raw_data = raw_data.filter(events.Id == eid)
+                raw_data = raw_data.filter(events.Id == int(eid))
             if tz:
                 db_tz = {'TIMEZONE': tz}
                 logger.debug(f'Converting to TimeZone: {tz}')

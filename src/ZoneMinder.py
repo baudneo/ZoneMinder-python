@@ -246,7 +246,15 @@ class ZoneMinder:
 
 
     def configs(self, method=None, options=None) -> Optional[List[Optional[ZMConfig]]]:
-        """Interface with ZoneMinder 'Configs' Table. 'get' to query, 'set' to manipulate objects."""
+        """Interface with ZoneMinder 'Configs' Table. 'get' to query, 'set' to manipulate objects.
+
+        options:
+            - id: int - id of config to get
+            - name: str - name of config to get
+            - category: str - category of config to get
+            - type: str - type of config to get
+
+        """
         if options is None:
             options = {}
         if not method:
@@ -333,7 +341,16 @@ class ZoneMinder:
 
 
     def zones(self, method=None, options=None) -> Optional[List[Optional[ZMZone]]]:
-        """Interface with ZoneMinder 'Zones' Table. 'get' to query, 'set' to manipulate objects."""
+        """Interface with ZoneMinder 'Zones' Table. 'get' to query, 'set' to manipulate objects.
+
+        options:
+            - id: int - filter by id.
+            - name: str - filter by name.
+            - monitor_id: int - filter by monitor_id.
+            - type: str - filter by type.
+
+
+        """
         if options is None:
             options = {}
         if not method:
@@ -361,15 +378,27 @@ class ZoneMinder:
             raise ValueError("Invalid method: {}".format(method))
 
     def storage(self, method=None, options=None) -> Optional[List[Optional[ZMStorage]]]:
-        """Interface with ZoneMinder 'Storage' Table. 'get' to query, 'set' to manipulate objects."""
+        """Interface with ZoneMinder 'Storage' Table. 'get' to query, 'set' to manipulate objects.
+
+        options:
+            - id: int - filter by id.
+            - name: str - filter by name.
+            - path: str - filter by path.
+            - server_id: int - filter by server_id.
+            - enabled: bool - filter by enabled.
+            - used_disk_space: dict {
+                - ascending: bool - sort ascending.
+                - descending: bool - sort descending.
+            } - filter by used disk space.
+
+            """
         if options is None:
             options = {}
         if not method:
             method = 'get'
 
         if method == 'get':
-            storage: list = Storage(session=self.session, session_options=self.session.options)
-            print(f'{len(storage)} storage objects')
+            storage: list = Storage(session=self.session, options=options, session_options=self.session.options)
             final: ZMStorage = ZMStorage()
             for slices in storage:
                 if self.session.type == 'db':
@@ -415,14 +444,22 @@ class ZoneMinder:
             raise ValueError("Invalid method: {}".format(method))
 
     def states(self, method=None, options=None) -> Optional[List[Optional[ZMState]]]:
-        """Interface with ZoneMinder 'States' Table. 'get' to query, 'set' to manipulate objects."""
+        """Interface with ZoneMinder 'States' Table. 'get' to query, 'set' to manipulate objects.
+
+            options:
+                id: int - request a state by its id.
+                name: str - request a state by name.
+                current: bool - return the currently active state.
+
+
+        """
         if options is None:
             options = {}
         if not method:
             method = 'get'
 
         if method == 'get':
-            states: list = States(session=self.session, session_options=self.session.options)
+            states: list = States(session=self.session, options=options, session_options=self.session.options)
             final: ZMState = ZMState()
             for state in states:
                 if self.session.type == 'api':
