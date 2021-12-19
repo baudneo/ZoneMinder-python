@@ -4,9 +4,9 @@ from typing import Optional, Dict, List
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.ZMClasses import Events, Monitors, States, Zones, Configs
+from src.ZMClasses import Events, Monitors, States, Zones, Configs, TriggersX10, Storage, Logs, Servers
 from src.ZMSession import ZMSession
-from src.dataclasses import ZMEvent, ZMMonitor, ZMState, ZMZone, ZMConfig
+from src.dataclasses import ZMEvent, ZMMonitor, ZMState, ZMZone, ZMConfig, ZMTriggersX10, ZMStorage, ZMLogs, ZMServers
 from src.models import DBOptions, APIOptions
 
 logger = logging.getLogger('ZM')
@@ -107,6 +107,11 @@ class ZoneMinder:
         self.States: list = []
         self.Zones: list = []
         self.Configs: list = []
+        self.TriggersX10: list = []
+        self.Storage: list = []
+        self.Logs: list = []
+        self.Servers: list = []
+
 
         self.session: ZMSession
         if self.options is not None:
@@ -268,6 +273,65 @@ class ZoneMinder:
         else:
             raise ValueError("Invalid method: {}".format(method))
 
+
+
+    def logs(self, method=None, options=None) -> Optional[List[Optional[ZMLogs]]]:
+        """Interface with ZoneMinder 'Logs' Table. 'get' to query, 'set' to manipulate objects."""
+        if options is None:
+            options = {}
+        if not method:
+            method = 'get'
+
+
+
+        if method == 'get':
+            logs: list = Logs(session=self.session, session_options=self.session.options)
+            final: ZMLogs = ZMLogs()
+            for log in logs:
+                if self.session.type == 'api':
+                    log: dict
+                    for k, v in log['Logs'].items():
+                        setattr(final, k, v)
+                elif self.session.type == 'db':
+                    log: ZMZone
+                    for attr in dir(log):
+                        if attr.startswith('_') or not attr[0].isupper():
+                            continue
+                        setattr(final, attr, getattr(log, attr))
+                self.Logs.append(final)
+            return self.Logs
+        elif method == 'set':
+            return None
+        else:
+            raise ValueError(f"Invalid method: {method}")
+
+
+    def servers(self, method=None, options=None) -> Optional[List[Optional[ZMServers]]]:
+        """Interface with ZoneMinder 'Servers' Table. 'get' to query, 'set' to manipulate objects."""
+        if options is None:
+            options = {}
+        if not method:
+            method = 'get'
+
+        if method == 'get':
+            servers: list = Servers(session=self.session, session_options=self.session.options)
+            final: ZMServers = ZMServers()
+            for server in servers:
+                if self.session.type == 'api':
+                    server: dict
+                    for k, v in server['Server'].items():
+                        setattr(final, k, v)
+                elif self.session.type == 'db':
+                    server: ZMServers
+                    for attr in dir(server):
+                        if attr.startswith('_') or not attr[0].isupper():
+                            continue
+                        setattr(final, attr, getattr(server, attr))
+                self.Servers.append(final)
+            return self.Servers
+
+
+
     def zones(self, method=None, options=None) -> Optional[List[Optional[ZMZone]]]:
         """Interface with ZoneMinder 'Zones' Table. 'get' to query, 'set' to manipulate objects."""
         if options is None:
@@ -291,6 +355,60 @@ class ZoneMinder:
                         setattr(final, attr, getattr(zone, attr))
                 self.Zones.append(final)
             return self.Zones
+        elif method == 'set':
+            return None
+        else:
+            raise ValueError("Invalid method: {}".format(method))
+
+    def storage(self, method=None, options=None) -> Optional[List[Optional[ZMStorage]]]:
+        """Interface with ZoneMinder 'Storage' Table. 'get' to query, 'set' to manipulate objects."""
+        if options is None:
+            options = {}
+        if not method:
+            method = 'get'
+
+        if method == 'get':
+            storage: list = Storage(session=self.session, session_options=self.session.options)
+            print(f'{len(storage)} storage objects')
+            final: ZMStorage = ZMStorage()
+            for slices in storage:
+                if self.session.type == 'db':
+                    slices: ZMStorage
+                    for attr in dir(slices):
+                        if attr.startswith('_') or not attr[0].isupper():
+                            continue
+                        setattr(final, attr, getattr(slices, attr))
+                elif self.session.type == 'api':
+                    slices: dict
+                    for k, v in slices['Storage'].items():
+                        setattr(final, k, v)
+            self.Storage.append(final)
+        return self.Storage
+
+
+    def triggersx10(self, method=None, options=None):
+        """Interface with ZoneMinder 'TriggersX10' Table. 'get' to query, 'set' to manipulate objects."""
+        if options is None:
+            options = {}
+        if not method:
+            method = 'get'
+
+        if method == 'get':
+            triggers: list = TriggersX10(session=self.session, session_options=self.session.options)
+            final: ZMTriggersX10 = ZMTriggersX10()
+            for trigger in triggers:
+                if self.session.type == 'api':
+                    trigger: dict
+                    for k, v in trigger['TriggerX10'].items():
+                        setattr(final, k, v)
+                elif self.session.type == 'db':
+                    trigger: ZMTriggersX10
+                    for attr in dir(trigger):
+                        if attr.startswith('_') or not attr[0].isupper():
+                            continue
+                        setattr(final, attr, getattr(trigger, attr))
+                self.TriggersX10.append(final)
+            return self.TriggersX10
         elif method == 'set':
             return None
         else:

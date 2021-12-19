@@ -5,6 +5,179 @@ from sqlalchemy import Table, Enum, DateTime, Numeric
 
 
 @dataclass
+class ZMServers:
+    Id: int = None
+    Protocol: str = None
+    Hostname: str = None
+    Port: int = None
+    PathToIndex: str = None
+    PathToZMS: str = None
+    PathToApi: str = None
+    Name: str = None
+    StateId: int = None
+    Status: Enum = None
+    CpuLoad: float = None
+    TotalMem: int = None
+    FreeSwap: int = None
+    zmstats: int = None
+    zmaudit: int = None
+    zmtrigger: int = None
+    zmeventnotification: int = None
+
+
+@dataclass
+class ZMLayouts:
+    Id: int = None
+    Name: str = None
+    Positions: int = None
+
+
+@dataclass
+class ZMGroups:
+    Id: int = None
+
+
+
+@dataclass
+class ZMLogs:
+    Id: int = None
+    TimeKey: float = None
+    Component: str = None
+    ServerId: int = None
+    Pid: int = None
+    Level: int = None
+    Code: str = None
+    Message: str = None
+    File: str = None
+    Line: int = None
+
+
+@dataclass
+class ZMStorage:
+    Id: int = None
+    Path: str = None
+    Name: str = None
+    Type: Enum = None
+    Url: str = None
+    DiskSpace: int = None
+    Scheme: Enum = None
+    ServerId: int = None
+    DoDelete: int = None
+    Enabled: int = None
+
+
+@dataclass
+class ZMTriggersX10:
+    MonitorId: int = None
+    Activation: str = None
+    AlarmInput: str = None
+    AlarmOutput: str = None
+
+@dataclass
+class ZMControl:
+    Id: int = None
+    Name: str = None
+    Type: Enum = None
+    Protocol: str = None
+    CanWake: int = None
+    CanSleep: int = None
+    CanReset: int = None
+    CanReboot: int = None
+    CanZoom: int = None
+    CanAutoZoom: int = None
+    CanZoomAbs: int = None
+    CanZoomRel: int = None
+    CanZoomCon: int = None
+    MinZoomRange: int = None
+    MaxZoomRange: int = None
+    MinZoomStep: int = None
+    MaxZoomStep: int = None
+    HasZoomSpeed: int = None
+    MinZoomSpeed: int = None
+    MaxZoomSpeed: int = None
+    CanFocus: int = None
+    CanAutoFocus: int = None
+    CanFocusAbs: int = None
+    CanFocusRel: int = None
+    CanFocusCon: int = None
+    MinFocusRange: int = None
+    MaxFocusRange: int = None
+    MinFocusStep: int = None
+    MaxFocusStep: int = None
+    HasFocusSpeed: int = None
+    MinFocusSpeed: int = None
+    MaxFocusSpeed: int = None
+    CanIris: int = None
+    CanAutoIris: int = None
+    CanIrisAbs: int = None
+    CanIrisRel: int = None
+    CanIrisCon: int = None
+    MinIrisRange: int = None
+    MaxIrisRange: int = None
+    MinIrisStep: int = None
+    MaxIrisStep: int = None
+    HasIrisSpeed: int = None
+    MinIrisSpeed: int = None
+    MaxIrisSpeed: int = None
+    CanGain: int = None
+    CanAutoGain: int = None
+    CanGainAbs: int = None
+    CanGainRel: int = None
+    CanGainCon: int = None
+    MinGainRange: int = None
+    MaxGainRange: int = None
+    MinGainStep: int = None
+    MaxGainStep: int = None
+    HasGainSpeed: int = None
+    MinGainSpeed: int = None
+    MaxGainSpeed: int = None
+    CanWhite: int = None
+    CanAutoWhite: int = None
+    CanWhiteAbs: int = None
+    CanWhiteRel: int = None
+    CanWhiteCon: int = None
+    MinWhiteRange: int = None
+    MaxWhiteRange: int = None
+    MinWhiteStep: int = None
+    MaxWhiteStep: int = None
+    HasWhiteSpeed: int = None
+    MinWhiteSpeed: int = None
+    MaxWhiteSpeed: int = None
+    HasPresets: int = None
+    NumPresets: int = None
+    HasHomePreset: int = None
+    CanSetPresets: int = None
+    CanMove: int = None
+    CanMoveDiag: int = None
+    CanMoveMap: int = None
+    CanMoveAbs: int = None
+    CanMoveRel: int = None
+    CanMoveCon: int = None
+    CanPan: int = None
+    MinPanRange: int = None
+    MaxPanRange: int = None
+    MinPanStep: int = None
+    MaxPanStep: int = None
+    HasPanSpeed: int = None
+    MinPanSpeed: int = None
+    MaxPanSpeed: int = None
+    HasTurboPan: int = None
+    TurboPanSpeed: int = None
+    CanTilt: int = None
+    MinTiltRange: int = None
+    MaxTiltRange: int = None
+    MinTiltStep: int = None
+    MaxTiltStep: int = None
+    HasTiltSpeed: int = None
+    MinTiltSpeed: int = None
+    MaxTiltSpeed: int = None
+    HasTurboTilt: int = None
+    TurboTiltSpeed: int = None
+    CanAutoScan: int = None
+    NumScanPaths: int = None
+
+
+@dataclass
 class ZMConfig:
     Id: int = None
     Name: str = None

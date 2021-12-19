@@ -20,6 +20,148 @@ console_handler.setFormatter(console_fmt)
 logger.addHandler(console_handler)
 
 
+def Servers(
+        session: ZMSession = None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
+):
+    servers: list = []
+    if session and session.type == 'db':
+        logger.info(f"Retrieving 'Servers' via SQL")
+        db_sess: Optional[Session] = None
+        ret = None
+        with session.db_sess() as db_sess:
+            if options.get()
+            servers_dataclass: ZMState = session.db.Servers
+            ret = db_sess.query(servers_dataclass).all()
+
+    elif session and session.type == 'api':
+        logger.info(f"Retrieving 'Servers' via API")
+        url = f"{session_options.api_url}/servers.json"
+        r = session.api_sess.make_request(url=url)
+        api_servers = r.get('servers')
+        ret = []
+        for server in api_servers:
+            ret.append(server)
+    return ret
+
+
+
+def MontageLayouts(
+        session: ZMSession = None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
+):
+    montage_layouts: list = []
+    if session and session.type == 'db':
+        logger.info(f"Retrieving 'MontageLayouts' via SQL")
+        db_sess: Optional[Session] = None
+        ret = None
+        with session.db_sess() as db_sess:
+            db_montage_layouts: ZMState = session.db.MontageLayouts
+            ret = db_sess.query(db_montage_layouts).all()
+
+    elif session and session.type == 'api':
+        raise NotImplementedError("API not implemented for this function")
+    return ret
+
+
+def Groups(
+        session: ZMSession = None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
+):
+    groups: list = []
+    if session and session.type == 'db':
+        logger.info(f"Retrieving 'Groups' via SQL")
+        db_sess: Optional[Session] = None
+        ret = None
+        with session.db_sess() as db_sess:
+            groups_dataclass: ZMState = session.db.Groups
+            ret = db_sess.query(groups_dataclass).all()
+
+    elif session and session.type == 'api':
+        logger.info(f"Retrieving 'Groups' via API")
+        url = f"{session_options.api_url}/groups.json"
+        r = session.api_sess.make_request(url=url)
+        api_groups = r.get('groups')
+        ret = []
+        for group in api_groups:
+            ret.append(group)
+    return ret
+
+
+def Logs(
+        session: ZMSession = None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
+):
+    logs: list = []
+    if session and session.type == 'db':
+        logger.info(f"Retrieving 'Logs' via SQL")
+        db_sess: Optional[Session] = None
+        ret = []
+        with session.db_sess() as db_sess:
+            logs_dataclass: ZMState = session.db.Logs
+            ret = db_sess.query(logs_dataclass).all()
+
+    elif session and session.type == 'api':
+        logger.info(f"Retrieving 'Logs' via API")
+        url = f"{session_options.api_url}/logs.json"
+        r = session.api_sess.make_request(url=url)
+        api_logs = r.get('logs')
+        ret = []
+        for log in api_logs:
+            ret.append(log)
+    return ret
+
+
+def TriggersX10(
+        session: ZMSession = None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
+):
+    triggers: list = []
+    ret = None
+    if session and session.type == 'db':
+        logger.info(f"Retrieving 'Triggers' via SQL")
+        db_sess: Optional[Session] = None
+        ret = None
+        with session.db_sess() as db_sess:
+            db_triggers: ZMState = session.db.TriggersX10
+            ret = db_sess.query(db_triggers).all()
+
+    elif session and session.type == 'api':
+        logger.info(f"Retrieving 'Triggers' via API")
+        url = f"{session_options.api_url}/triggers.json"
+        r = session.api_sess.make_request(url=url)
+        api_triggers = r.get('triggers')
+        ret = []
+        for trigger in api_triggers:
+            ret.append(trigger)
+    return ret
+
+
+def Storage(
+        session: ZMSession = None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
+):
+    storage: list = []
+    if session and session.type == 'db':
+        logger.info(f"Retrieving 'Storage' via SQL")
+        db_sess: Optional[Session] = None
+        ret = None
+        with session.db_sess() as db_sess:
+            storage_dataclass: ZMState = session.db.Storage
+            ret = db_sess.query(storage_dataclass).all()
+            print(f"{len(ret) = }")
+
+    elif session and session.type == 'api':
+        logger.info(f"Retrieving 'Storage' via API")
+        url = f"{session_options.api_url}/storage.json"
+        r = session.api_sess.make_request(url=url)
+        api_storage = r.get('storage')
+        ret = []
+        for storage_item in api_storage:
+            ret.append(storage_item)
+    return ret
+
+
 def Configs(
             session: ZMSession = None,
             session_options: Optional[Union[DBOptions, APIOptions]] = None,
@@ -28,9 +170,9 @@ def Configs(
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Configs' via SQL")
         db_sess: Optional[Session] = None
-        ret = None
+        ret = []
         with session.db_sess() as db_sess:
-            configs_dataclass: ZMConfig = session.db.Configs
+            configs_dataclass: ZMConfig = session.db.Config
             ret = db_sess.query(configs_dataclass).all()
 
     elif session and session.type == 'api':
@@ -48,7 +190,6 @@ def Monitors(
             session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     monitors: list = []
-    ret = None
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Monitors' via SQL")
         db_sess: Optional[Session] = None

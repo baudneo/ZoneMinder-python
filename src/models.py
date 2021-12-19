@@ -2,6 +2,7 @@ from pydantic import BaseModel
 
 
 class DBOptions(BaseModel):
+    sanitize: bool = False
     conf_path: str = None
     host: str = None
     port: int = None

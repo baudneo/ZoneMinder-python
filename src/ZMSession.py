@@ -166,8 +166,10 @@ class ZMSession:
 
             conn_str = f"{db_config['driver']}://{db_config['dbuser']}:{db_config['dbpassword']}@" \
                        f"{db_config['dbhost']}/{db_config['dbname']}"
+            show_conn_str = conn_str.replace(db_config['dbpassword'],
+                                             '<sanitized>').replace(db_config['dbhost'], '<sanitized>')
             try:
-                logger.debug(f"Connecting to ZM DB: {conn_str}")
+                logger.debug(f"Connecting to ZM DB: {show_conn_str if options.sanitize else conn_str}")
                 engine = create_engine(conn_str, pool_recycle=3600)
             except SQLAlchemyError as e:
                 engine = None
@@ -180,13 +182,11 @@ class ZMSession:
                 # automap, populate python classes using Table schema.
                 self.auto_map: automap_base = Base(metadata=self.metadata)
                 self.auto_map.prepare(engine)
-                self.classes = self.auto_map.classes
                 self.db: ZMDB = ZMDB()
-                from string import ascii_uppercase
                 for attr in dir(self.auto_map.classes):
-                    if attr.startswith('__') or attr[0] not in ascii_uppercase:
+                    if attr.startswith('_') or not attr[0].isupper():
                         continue
-                    setattr(self.db, attr, getattr(self.auto_map.classes, attr))
+                    setattr(self.db, attr, (value := getattr(self.auto_map.classes, attr)))
 
 
         elif self.type == 'api':
