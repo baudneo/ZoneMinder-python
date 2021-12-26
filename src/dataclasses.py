@@ -33,6 +33,28 @@ class ZMLayouts:
 
 
 @dataclass
+class ZMUsers:
+    Id: int = None
+    Username: str = None
+    Password: str = None
+    Language: str = None
+    Enabled: int = None
+    Stream: Enum = None
+    Events: Enum = None
+    Control: Enum = None
+    Monitors: Enum = None
+    Groups: Enum = None
+    Devices: Enum = None
+    Snapshots: Enum = None
+    System: Enum = None
+    MaxBandwidth: str = None
+    MonitorIds: str = None
+    TokenMinExpiry: int = None
+    APIEnabled: int = None
+    HomeView: str = None
+
+
+@dataclass
 class ZMGroups:
     Id: int = None
 

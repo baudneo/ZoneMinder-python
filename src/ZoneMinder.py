@@ -1,12 +1,13 @@
 import logging
-from string import ascii_uppercase
+
 from typing import Optional, Dict, List
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from src.ZMClasses import Events, Monitors, States, Zones, Configs, TriggersX10, Storage, Logs, Servers
+from src.ZMClasses import Events, Monitors, States, Zones, Configs, TriggersX10, Storage, Logs, Servers, Users
 from src.ZMSession import ZMSession
-from src.dataclasses import ZMEvent, ZMMonitor, ZMState, ZMZone, ZMConfig, ZMTriggersX10, ZMStorage, ZMLogs, ZMServers
+from src.dataclasses import ZMEvent, ZMMonitor, ZMState, ZMZone, ZMConfig, ZMTriggersX10, ZMStorage, ZMLogs, ZMServers, \
+    ZMUsers
 from src.models import DBOptions, APIOptions
 
 logger = logging.getLogger('ZM')
@@ -112,7 +113,6 @@ class ZoneMinder:
         self.Logs: list = []
         self.Servers: list = []
 
-
         self.session: ZMSession
         if self.options is not None:
             self.db_opts = DBOptions(**options)
@@ -122,15 +122,16 @@ class ZoneMinder:
             if force_api and force_db:
                 logger.debug(f"'force_api' and 'force_db' were both passed")
                 if (not options) or (options and not options.get('api_url')):
-                    logger.debug(f"It seems that options does not have the correct options for API, using SQL session")
+                    logger.debug(f"There are not the correct options for API, using SQL session")
                     force_api = False
                     self._init_db()
                 elif options and options.get('api_url'):
-                    logger.debug(f'It seems that there are the correct options for an API session')
+                    logger.debug(f'There are the correct options for an API session')
                     self._init_api()
             elif force_api:
                 if (not options) or (options and not options.get('api_url')):
-                    logger.error(f"'force_api' parameter requires options to be set - A minimum of 'api_url' is required")
+                    logger.error(f"'force_api' parameter requires options to be set - A minimum of 'api_url' "
+                                 f"is required if you are not using any auth mechanism")
                 else:
                     self._init_api()
             elif force_db:
@@ -138,13 +139,13 @@ class ZoneMinder:
         else:
             # no force_*
             if (not options) or (options and not options.get('api_url')):
-                logger.debug(f'There are the correct options for an SQL session, initializing...')
+                logger.debug(f'SQL session, initializing...')
                 self._init_db()
             elif options and options.get('api_url'):
-                logger.debug(f'There are the correct options for an API session, initializing...')
+                logger.debug(f'API session, initializing...')
                 self._init_api()
 
-    def events(self, method=None, options=None) -> List[Optional[ZMEvent]]:
+    def events(self, options=None, method=None) -> List[Optional[ZMEvent]]:
         """Returns a list of events based on filter criteria. Note that each time you call events, a new HTTP call/SQL Query is made.
 
             options (dict, optional): Various filters that will be applied to events. Defaults to {}.
@@ -173,35 +174,29 @@ class ZoneMinder:
 
         if method == 'get':
             events: list = Events(options=options, session=self.session, session_options=self.session.options)
-            seen = []
             if events:
-                final = ZMEvent()
                 for event in events:
+                    final = ZMEvent()
                     # API
                     if self.session.type == 'api':
                         event: dict
                         skip = ('StartTime', 'EndTime', 'MaxScoreFrameId', 'FileSystemPath')
                         eid = int(event['Event']['Id'])
-                        if eid not in seen:
-                            seen.append(eid)
-
-                            # for attr in dir(event):
-                            for k, v in event['Event'].items():
-                                k: str
-                                if k in skip:
-                                    continue
-                                setattr(final, k, v)
-                            self.Events.append(final)
+                        # for attr in dir(event):
+                        for k, v in event['Event'].items():
+                            k: str
+                            if k in skip:
+                                continue
+                            setattr(final, k, v)
+                        self.Events.append(final)
                     # SQL
                     if self.session.type == 'db':
                         event: ZMEvent
-                        if event.Id not in seen:
-                            seen.append(event.Id)
-                            for attr in dir(event):
-                                if attr.startswith('__') or attr[0] not in ascii_uppercase:
-                                    continue
-                                setattr(final, attr, getattr(event, attr))
-                            self.Events.append(final)
+                        for attr in dir(event):
+                            if attr.startswith('_') or not attr[0].isupper():
+                                continue
+                            setattr(final, attr, getattr(event, attr))
+                        self.Events.append(final)
             return self.Events
 
     def monitors(self, method=None, options=None) -> Optional[List[Optional[ZMMonitor]]]:
@@ -224,8 +219,10 @@ class ZoneMinder:
         if method == 'get':
             if options.get("force_reload") or not self.Monitors:
                 mons: list = Monitors(session=self.session, session_options=self.session.options)
-                final: ZMMonitor = ZMMonitor()
                 for mon in mons:
+                    # construct a new object on each iteration, otherwise it will just be a long
+                    # list of referenced objects
+                    final: ZMMonitor = ZMMonitor()
                     if self.session.type == 'api':
                         mon: dict
                         for k, v in mon['Monitor'].items():
@@ -262,8 +259,8 @@ class ZoneMinder:
 
         if method == 'get':
             configs: list = Configs(session=self.session, session_options=self.session.options)
-            final: ZMConfig = ZMConfig()
             for config in configs:
+                final: ZMConfig = ZMConfig()
                 if self.session.type == 'api':
                     config: dict
                     for k, v in config['Config'].items():
@@ -284,18 +281,31 @@ class ZoneMinder:
 
 
     def logs(self, method=None, options=None) -> Optional[List[Optional[ZMLogs]]]:
-        """Interface with ZoneMinder 'Logs' Table. 'get' to query, 'set' to manipulate objects."""
+        """Interface with ZoneMinder 'Logs' Table. 'get' to query, 'set' to manipulate objects.
+
+        options: dict - A dict containing filtering options.
+            - id: int - filter by id.
+            - server_id: int - filter by server id.
+            - file: str - calling filename (filename:line_no)
+            - component: str - component to filter by.
+            - level: int - level to filter by.
+            - pid: int - process id.
+            - code: str -
+
+            - ascending: bool - sort Time by ascending.
+            - descending: bool - sort Time by descending.
+            - from: str - filter by start time '20 mins ago' or a range by '1 day ago to 3 hours ago'.
+            - to: str - filter by end time '30 mins ago'
+
+        """
         if options is None:
             options = {}
         if not method:
             method = 'get'
-
-
-
         if method == 'get':
-            logs: list = Logs(session=self.session, session_options=self.session.options)
-            final: ZMLogs = ZMLogs()
+            logs: list = Logs(session=self.session, options=options, session_options=self.session.options)
             for log in logs:
+                final: ZMLogs = ZMLogs()
                 if self.session.type == 'api':
                     log: dict
                     for k, v in log['Logs'].items():
@@ -323,8 +333,8 @@ class ZoneMinder:
 
         if method == 'get':
             servers: list = Servers(session=self.session, session_options=self.session.options)
-            final: ZMServers = ZMServers()
             for server in servers:
+                final: ZMServers = ZMServers()
                 if self.session.type == 'api':
                     server: dict
                     for k, v in server['Server'].items():
@@ -358,8 +368,8 @@ class ZoneMinder:
 
         if method == 'get':
             zones: list = Zones(session=self.session, session_options=self.session.options)
-            final: ZMZone = ZMZone()
             for zone in zones:
+                final: ZMZone = ZMZone()
                 if self.session.type == 'api':
                     zone: dict
                     for k, v in zone['Zone'].items():
@@ -399,8 +409,8 @@ class ZoneMinder:
 
         if method == 'get':
             storage: list = Storage(session=self.session, options=options, session_options=self.session.options)
-            final: ZMStorage = ZMStorage()
             for slices in storage:
+                final: ZMStorage = ZMStorage()
                 if self.session.type == 'db':
                     slices: ZMStorage
                     for attr in dir(slices):
@@ -424,8 +434,8 @@ class ZoneMinder:
 
         if method == 'get':
             triggers: list = TriggersX10(session=self.session, session_options=self.session.options)
-            final: ZMTriggersX10 = ZMTriggersX10()
             for trigger in triggers:
+                final: ZMTriggersX10 = ZMTriggersX10()
                 if self.session.type == 'api':
                     trigger: dict
                     for k, v in trigger['TriggerX10'].items():
@@ -444,8 +454,7 @@ class ZoneMinder:
             raise ValueError("Invalid method: {}".format(method))
 
     def states(self, method=None, options=None) -> Optional[List[Optional[ZMState]]]:
-        """Interface with ZoneMinder 'States' Table. 'get' to query, 'set' to manipulate objects.
-
+        """Interface with ZoneMinder 'States' Table. 'get' to query, 'set' to manipulate objects
             options:
                 id: int - request a state by its id.
                 name: str - request a state by name.
@@ -460,8 +469,8 @@ class ZoneMinder:
 
         if method == 'get':
             states: list = States(session=self.session, options=options, session_options=self.session.options)
-            final: ZMState = ZMState()
             for state in states:
+                final: ZMState = ZMState()
                 if self.session.type == 'api':
                     state: dict
                     for k, v in state['State'].items():
@@ -479,3 +488,39 @@ class ZoneMinder:
             return None
         else:
             raise ValueError("Invalid method: {}".format(method))
+
+    def users(self, method=None, options=None) -> Optional[List[Optional[ZMUsers]]]:
+        """Interface with ZoneMinder 'Users' Table. 'get' to query, 'set' to manipulate objects
+                    options:
+                        id: int - filter by Id.
+                        name: str - filter by Username.
+                        username: str - filter by Username.
+                        is_active: bool - filter by 'Enabled' state.
+                        api_active: bool - filter by 'APIEnabled' state.
+                """
+        if options is None:
+            options = {}
+        if not method:
+            method = 'get'
+
+        if method == 'get':
+            states: list = Users(session=self.session, options=options)
+            for state in states:
+                final: ZMState = ZMUsers()
+                if self.session.type == 'api':
+                    state: dict
+                    for k, v in state['State'].items():
+                        setattr(final, k, v)
+
+                elif self.session.type == 'db':
+                    state: ZMState
+                    for attr in dir(state):
+                        if attr.startswith('_') or not attr[0].isupper():
+                            continue
+                        setattr(final, attr, getattr(state, attr))
+                self.States.append(final)
+            return self.States
+        elif method == 'set':
+            return None
+        else:
+            raise ValueError(f"Invalid method: {method}")

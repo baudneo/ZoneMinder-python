@@ -180,6 +180,7 @@ class ZMSession:
                 # Prepare metadata ourselves, pickle it to a file for caching as the schema SHOULD not change
                 self.metadata = MetaDataCache(metadata=MetaData(engine))
                 # automap, populate python classes using Table schema.
+                # classes are mapped to a dataclass ive prepared based on ZM table schemas as well
                 self.auto_map: automap_base = Base(metadata=self.metadata)
                 self.auto_map.prepare(engine)
                 self.db: ZMDB = ZMDB()

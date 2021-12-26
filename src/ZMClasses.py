@@ -3,11 +3,12 @@ import warnings
 from typing import Optional, Union, Dict, Any, List
 
 import dateparser
+from sqlalchemy import asc, desc, and_
 from sqlalchemy.orm import Session, Query
 
 from src.ZMSession import ZMSession
 from src.utils import str2bool
-from src.dataclasses import ZMEvent, ZMState, ZMZone, ZMConfig, ZMStorage
+from src.dataclasses import ZMEvent, ZMState, ZMZone, ZMConfig, ZMStorage, ZMLogs, ZMUsers
 from src.models import DBOptions, APIOptions
 
 logger = logging.getLogger('ZMClasses')
@@ -43,7 +44,6 @@ def Servers(
         for server in api_servers:
             ret.append(server)
     return ret
-
 
 
 def MontageLayouts(
@@ -90,6 +90,7 @@ def Groups(
 
 def Logs(
         session: ZMSession = None,
+        options=None,
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     logs: list = []
@@ -98,8 +99,48 @@ def Logs(
         db_sess: Optional[Session] = None
         ret = []
         with session.db_sess() as db_sess:
-            logs_dataclass: ZMState = session.db.Logs
-            ret = db_sess.query(logs_dataclass).all()
+            db_logs: ZMLogs = session.db.Logs
+            ret = db_sess.query(db_logs)
+            if options.get('id'):
+                ret = ret.filter(db_logs.Id == options.get('id'))
+            if options.get('ascending'):
+                ret = ret.order_by(asc(db_logs.TimeKey))
+            if options.get('descending'):
+                ret = ret.order_by(desc(db_logs.TimeKey))
+            tz = options.get('tz')
+            db_tz = {}
+            if tz:
+                db_tz = {'TIMEZONE': tz}
+                logger.debug(f'Converting to TimeZone: {tz}')
+            if options.get('from'):
+                from_list = options.get('from').split(" to ", 1)
+                if len(from_list) == 2:
+                    from_start = dateparser.parse(from_list[0], settings=db_tz).timestamp()
+                    from_end = dateparser.parse(from_list[1], settings=db_tz).timestamp()
+                    # from_start = from_start
+                    if from_start > from_end:
+                        from_start, from_end = from_end, from_start
+                    logger.debug("'from' has 'to' in the 'from' option, querying with a range")
+                    ret = ret.filter(and_(db_logs.TimeKey >= from_start,
+                                          db_logs.TimeKey <= from_end))
+                else:
+                    ret = ret.filter(
+                        db_logs.TimeKey >= dateparser.parse(from_list[0], settings=db_tz).timestamp())
+
+            if options.get('to'):
+
+                to_list = options.get('to').split(" to ", 1)
+                if len(to_list) == 2:
+                    to_start = dateparser.parse(to_list[0], settings=db_tz).timestamp()
+                    to_end = dateparser.parse(to_list[1], settings=db_tz).timestamp()
+                    if to_start > to_end:
+                        to_start, to_end = to_end, to_start
+                    ret = ret.filter(and_(db_logs.TimeKey >= to_start,
+                                          db_logs.TimeKey <= to_end))
+                else:
+                    ret = ret.filter(
+                        db_logs.TimeKey >= dateparser.parse(to_list[0], settings=db_tz).timestamp())
+            ret = ret.all()
 
     elif session and session.type == 'api':
         logger.info(f"Retrieving 'Logs' via API")
@@ -180,9 +221,9 @@ def Storage(
 
 
 def Configs(
-            session: ZMSession = None,
-            options=None,
-            session_options: Optional[Union[DBOptions, APIOptions]] = None,
+        session: ZMSession = None,
+        options=None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     configs: list = []
     if session and session.type == 'db':
@@ -211,9 +252,10 @@ def Configs(
             ret.append(config)
     return ret
 
+
 def Monitors(
-            session: ZMSession = None,
-            session_options: Optional[Union[DBOptions, APIOptions]] = None,
+        session: ZMSession = None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     monitors: list = []
     if session and session.type == 'db':
@@ -270,9 +312,9 @@ def Zones(
 
 
 def States(
-            options: Optional[Dict] = None,
-            session: ZMSession = None,
-            session_options: Optional[Union[DBOptions, APIOptions]] = None,
+        options: Optional[Dict] = None,
+        session: ZMSession = None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     states: list = []
     if session and session.type == 'db':
@@ -308,11 +350,45 @@ def States(
         return ret
 
 
+def Users(
+        options: Optional[Dict] = None,
+        session: ZMSession = None,
+):
+    users: list = []
+    if session and session.type == 'db':
+        logger.info(f"Retrieving 'Users' via SQL")
+        db_sess: Optional[Session] = None
+        ret: Optional[Query] = None
+        with session.db_sess() as db_sess:
+            db_users: ZMUsers = session.db.Users
+            ret = db_sess.query(db_users)
+            if options.get('id'):
+                ret = ret.filter(db_users.Id == options.get('id'))
+            if options.get('name') or options.get('username'):
+                val_ = options.get('name', options.get('username'))
+                ret = ret.filter(db_users.Username == val_)
+            if options.get('api_active'):
+                ret = ret.filter(db_users.ApiEnabled == 1)
+            if options.get('is_active'):
+                ret = ret.filter(db_users.Enabled == 1)
+            ret = ret.all()
+        return ret
+
+    elif session and session.type == 'api':
+        logger.info(f"Retrieving 'Users' via API")
+        url = f"{session.api_options.api_url}/users.json"
+        r = session.api_sess.make_request(url=url)
+        api_users = r.get('users')
+        ret = []
+        for user in api_users:
+            ret.append(user)
+        return ret
+
 def Events(
-            options: Optional[Dict] = None,
-            session: ZMSession = None,
-            session_options: Optional[Union[DBOptions, APIOptions]] = None,
-            no_warn: bool = False,
+        options: Optional[Dict] = None,
+        session: ZMSession = None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
+        no_warn: bool = False,
 ):
     """
     Used internally to process Events
@@ -386,7 +462,8 @@ def Events(
                     raw_data = raw_data.filter(and_(db_events.StartDateTime >= from_start,
                                                     db_events.StartDateTime <= from_end))
                 else:
-                    raw_data = raw_data.filter(db_events.StartDateTime >= dateparser.parse(from_list[0], settings=db_tz))
+                    raw_data = raw_data.filter(
+                        db_events.StartDateTime >= dateparser.parse(from_list[0], settings=db_tz))
 
             if options.get('to'):
                 logger.debug(f"Using EndDateTime to filter SQL")
@@ -425,7 +502,6 @@ def Events(
             if db_sess:
                 logger.debug(f"Closing DB session after querying for events")
                 db_sess.close()
-                logger.debug(f"DB Session closed!")
 
     # API
     elif session and session.type == 'api':
