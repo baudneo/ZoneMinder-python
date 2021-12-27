@@ -11,6 +11,8 @@ class DBOptions(BaseModel):
     db_name: str = None
     db_driver: str = None
     extras: dict = {}
+    zmuser: str = None
+    zmpassword: str = None
 
 
 class APIOptions(BaseModel):

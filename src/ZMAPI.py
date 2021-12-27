@@ -486,7 +486,7 @@ If you do not supply it an event_id it will use the global event id.
                 {
                     'event_id': string # specific event ID to fetch
                     'tz': string # long form timezone (example America/New_York),
-                    'from': string # string # minimum start time (including human readable
+                    'from': string # string # minimum start time (including human-readable
                                    # strings like '1 hour ago' or '10 minutes ago to 5 minutes ago' to create a range)
                     'to': string # string # maximum end time
                     'mid': int # monitor id

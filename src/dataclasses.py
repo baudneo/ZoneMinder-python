@@ -4,6 +4,18 @@ from typing import Optional
 from sqlalchemy import Table, Enum, DateTime, Numeric
 
 
+@dataclass(frozen=True)
+class InterfacePrivs:
+    Stream: str
+    Events: str
+    Control: str
+    Monitors: str
+    Groups: str
+    Snapshots: str
+    System: str
+    Devices: str
+
+
 @dataclass
 class ZMServers:
     Id: int = None

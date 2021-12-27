@@ -26,12 +26,12 @@ def Servers(
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     servers: list = []
+    ret: Union[List, Query] = []
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Servers' via SQL")
         db_sess: Optional[Session] = None
         ret = None
         with session.db_sess() as db_sess:
-            # if options.get('')
             servers_dataclass: ZMState = session.db.Servers
             ret = db_sess.query(servers_dataclass).all()
 
@@ -51,6 +51,8 @@ def MontageLayouts(
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     montage_layouts: list = []
+    ret: Union[List, Query] = []
+
     if session and session.type == 'db':
         logger.info(f"Retrieving 'MontageLayouts' via SQL")
         db_sess: Optional[Session] = None
@@ -69,6 +71,8 @@ def Groups(
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     groups: list = []
+    ret: Union[List, Query] = []
+
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Groups' via SQL")
         db_sess: Optional[Session] = None
@@ -87,13 +91,13 @@ def Groups(
             ret.append(group)
     return ret
 
-
 def Logs(
         session: ZMSession = None,
         options=None,
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     logs: list = []
+    ret: Union[List, Query] = []
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Logs' via SQL")
         db_sess: Optional[Session] = None
@@ -117,7 +121,6 @@ def Logs(
                 if len(from_list) == 2:
                     from_start = dateparser.parse(from_list[0], settings=db_tz).timestamp()
                     from_end = dateparser.parse(from_list[1], settings=db_tz).timestamp()
-                    # from_start = from_start
                     if from_start > from_end:
                         from_start, from_end = from_end, from_start
                     logger.debug("'from' has 'to' in the 'from' option, querying with a range")
@@ -144,12 +147,54 @@ def Logs(
 
     elif session and session.type == 'api':
         logger.info(f"Retrieving 'Logs' via API")
-        url = f"{session_options.api_url}/logs.json"
+        url_filter: str = ''
+        params: dict = {}
+        tz: dict = {}
+
+        if options.get('id'):
+            url_filter += f"/Id=:{options.get('event_id')}"
+        if options.get('tz'):
+            tz = {'TIMEZONE': options.get('tz')}
+            logger.debug(f'Using TZ: {tz}')
+        if options.get('ascending'):
+            params['direction'] = 'asc'
+        if options.get('from'):
+            from_list = options.get('from').split(" to ", 1)
+            if len(from_list) == 2:
+                from_start = dateparser.parse(from_list[0], settings=tz)
+                from_end = dateparser.parse(from_list[1], settings=tz)
+                if from_start > from_end:
+                    from_start, from_end = from_end, from_start
+
+                url_filter += f"/TimeKey >=:{from_start.timestamp()}"
+                url_filter += f"/TimeKey <=:{from_end.timestamp()}"
+            else:
+                url_filter += f"/TimeKey >=:{dateparser.parse(from_list[0], settings=tz).timestamp()}"
+        if options.get('to'):
+            to_list = options.get('to').split(" to ", 1)
+            if len(to_list) == 2:
+                to_start = dateparser.parse(to_list[0], settings=tz)
+                to_end = dateparser.parse(to_list[1], settings=tz)
+                if to_start > to_end:
+                    to_start, to_end = to_end, to_start
+                url_filter += f"/TimeKey <=:{to_end.timestamp()}"
+                url_filter += f"/TimeKey >=:{to_start.timestamp()}"
+            else:
+                url_filter += f"/TimeKey <=:{dateparser.parse(to_list[0], settings=tz).timestamp()}"
+        # catch all
+        if options.get('raw_filter'):
+            url_filter += options.get('raw_filter')
+        # print ('URL filter: ',url_filter)
+        url_prefix = f'{session_options.api_url}/logs/index'
+
+        url = f'{url_prefix}{url_filter}.json'
+        params = {
+            'sort': 'TimeKey',
+            'direction': 'desc',
+        }
+        # url = f"{session_options.api_url}/logs.json"
         r = session.api_sess.make_request(url=url)
-        api_logs = r.get('logs')
-        ret = []
-        for log in api_logs:
-            ret.append(log)
+        ret = r.get('logs')
     return ret
 
 
@@ -158,7 +203,7 @@ def TriggersX10(
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     triggers: list = []
-    ret = None
+    ret: Union[List, Query] = []
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Triggers' via SQL")
         db_sess: Optional[Session] = None
@@ -184,10 +229,10 @@ def Storage(
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     storage: list = []
+    ret: Union[List, Query] = []
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Storage' via SQL")
         db_sess: Optional[Session] = None
-        ret = None
         with session.db_sess() as db_sess:
             db_storage: ZMStorage = session.db.Storage
             ret = db_sess.query(db_storage)
@@ -226,10 +271,10 @@ def Configs(
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     configs: list = []
+    ret: Union[List, Query] = []
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Configs' via SQL")
         db_sess: Optional[Session] = None
-        ret = []
         with session.db_sess() as db_sess:
             configs_dataclass: ZMConfig = session.db.Config
             ret = db_sess.query(configs_dataclass)
@@ -258,10 +303,10 @@ def Monitors(
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     monitors: list = []
+    ret: Union[List, Query] = []
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Monitors' via SQL")
         db_sess: Optional[Session] = None
-        ret = None
         with session.db_sess() as db_sess:
             mons: ZMEvent = session.db.Monitors
             ret = db_sess.query(mons).all()
@@ -270,10 +315,10 @@ def Monitors(
         logger.info(f"Retrieving 'Monitors' via API")
         url = f"{session_options.api_url}/monitors.json"
         r = session.api_sess.make_request(url=url)
-        mons = r.get('monitors')
-        ret = []
-        for mon in mons:
-            ret.append(mon)
+        # mons = r.get('monitors')
+        ret = r.get('monitors')
+        # for mon in mons:
+        #     ret.append(mon)
     return ret
 
 
@@ -283,7 +328,7 @@ def Zones(
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     zones: list = []
-    ret = None
+    ret: Union[List, Query] = []
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Zones' via SQL")
         db_sess: Optional[Session] = None
@@ -353,12 +398,14 @@ def States(
 def Users(
         options: Optional[Dict] = None,
         session: ZMSession = None,
+        session_options: Optional[Union[DBOptions, APIOptions]] = None,
+
 ):
     users: list = []
+    ret: Union[List, Query] = []
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Users' via SQL")
         db_sess: Optional[Session] = None
-        ret: Optional[Query] = None
         with session.db_sess() as db_sess:
             db_users: ZMUsers = session.db.Users
             ret = db_sess.query(db_users)
@@ -367,22 +414,33 @@ def Users(
             if options.get('name') or options.get('username'):
                 val_ = options.get('name', options.get('username'))
                 ret = ret.filter(db_users.Username == val_)
-            if options.get('api_active'):
+            if options.get('api_active') is True or options.get('apienabled') is True:
                 ret = ret.filter(db_users.ApiEnabled == 1)
-            if options.get('is_active'):
+            if options.get('is_active') is True or options.get('enabled') is True:
                 ret = ret.filter(db_users.Enabled == 1)
             ret = ret.all()
-        return ret
 
     elif session and session.type == 'api':
         logger.info(f"Retrieving 'Users' via API")
-        url = f"{session.api_options.api_url}/users.json"
-        r = session.api_sess.make_request(url=url)
-        api_users = r.get('users')
-        ret = []
-        for user in api_users:
-            ret.append(user)
-        return ret
+        params: dict = {}
+        url = f'{session_options.api_url}/users/index.json'
+
+        r = session.api_sess.make_request(url=url, query=params)
+        ret = r.get('users')
+        if options.get('id'):
+            ret = [x for x in ret if x.get('User').get('Id') == options.get('id')]
+        if options.get('name') or options.get('username'):
+            val_ = options.get('name', options.get('username'))
+            if ret is not None:
+                ret = [x for x in ret if x.get('User').get('Username') == val_]
+        if options.get('api_active') is True or options.get('apienabled') is True:
+            if ret is not None:
+                ret = [x for x in ret if x.get('User').get('ApiEnabled') == '1']
+        if options.get('is_active') is True or options.get('enabled') is True:
+            ret = [x for x in ret if x.get('User').get('Enabled') == '1']
+
+    return ret
+
 
 def Events(
         options: Optional[Dict] = None,
@@ -556,7 +614,6 @@ def Events(
         if options.get('raw_filter'):
             url_filter += options.get('raw_filter')
         # print ('URL filter: ',url_filter)
-        # todo - no need for url_prefix in options
         url_prefix = f'{session_options.api_url}/events/index'
 
         url = f'{url_prefix}{url_filter}.json'

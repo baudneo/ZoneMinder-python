@@ -190,6 +190,7 @@ class ZMSession:
                     setattr(self.db, attr, (value := getattr(self.auto_map.classes, attr)))
 
 
+
         elif self.type == 'api':
             from src.ZMAPI import ZMApi
             self.user = options.user
