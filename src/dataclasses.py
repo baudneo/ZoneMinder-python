@@ -1,7 +1,14 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Optional
 
 from sqlalchemy import Table, Enum, DateTime, Numeric
+
+
+@dataclass
+class Groups:
+    Id: int = None
+    ParentId: int = None
+    Name: str = None
 
 
 @dataclass(frozen=True)
@@ -452,3 +459,32 @@ class ZMDB:
     Users: Optional[Table] = field(default_factory=Table)
     ZonePresets: Optional[Table] = field(default_factory=Table)
     Zones: Optional[Table] = field(default_factory=Table)
+
+
+@dataclass
+class DBOptions:
+    sanitize: bool = False
+    conf_path: str = None
+    host: str = None
+    port: int = None
+    user: str = None
+    password: str = None
+    db_name: str = None
+    db_driver: str = None
+    extras: dict = field(default_factory=dict)
+    zmuser: str = None
+    zmpassword: str = None
+
+
+@dataclass
+class APIOptions:
+    sanitize: bool = False
+    host: str = None
+    basic_auth: bool = None
+    port: int = None
+    user: str = None
+    password: str = None
+    strict_ssl: bool = None
+    api_url: str = None
+    portal_url: str = None
+    extras: dict = field(default_factory=dict)

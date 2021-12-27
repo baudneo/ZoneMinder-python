@@ -23,8 +23,7 @@ from requests.packages.urllib3 import disable_warnings
 from requests.exceptions import HTTPError
 from urllib3.exceptions import InsecureRequestWarning
 
-from src.dataclasses import ZMDB
-from src.models import DBOptions, APIOptions
+from src.dataclasses import ZMDB, DBOptions, APIOptions
 
 Base: automap_base = automap_base()
 

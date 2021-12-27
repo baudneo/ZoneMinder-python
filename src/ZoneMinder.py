@@ -1,15 +1,15 @@
 import logging
+from dataclasses import fields
 from enum import Enum
 
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Union
 
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.ZMClasses import Events, Monitors, States, Zones, Configs, TriggersX10, Storage, Logs, Servers, Users
 from src.ZMSession import ZMSession
 from src.dataclasses import ZMEvent, ZMMonitor, ZMState, ZMZone, ZMConfig, ZMTriggersX10, ZMStorage, ZMLogs, ZMServers, \
-    ZMUsers, InterfacePrivs
-from src.models import DBOptions, APIOptions
+    ZMUsers, InterfacePrivs, DBOptions, APIOptions
 
 logger = logging.getLogger('ZM')
 logger.setLevel(logging.DEBUG)
@@ -74,9 +74,7 @@ class ZoneMinder:
         self.session = ZMSession(self.db_opts, 'db')
         self.authorize(self.db_opts.zmuser, self.db_opts.zmpassword)
         if not self.authorized:
-            logger.error(f"Could not authorize with provided credentials")
-            self.session = None
-            return 1
+            logger.error(f"Could not authorize with provided credentials!")
 
     def __init__(self, options: Optional[Dict] = None, force_db: bool = False, force_api: bool = False):
         """Python interface for ZoneMinder. Instantiate and query for information.
@@ -141,12 +139,15 @@ class ZoneMinder:
         self.session: ZMSession
         logger.debug(f"ZoneMinder-python instantiated with options: {repr(options)}")
         if self.options is not None:
-            self.db_opts = DBOptions(**options)
+            # dataclass hack to avoid TypeError: unknown key Exceptions
+            self.db_opts = DBOptions(**
+                                     {k: v for k, v in options.items() if k in set(f.name for f in fields(DBOptions))})
             if (not options.get('user')) and options.get('zmuser'):
                 options['user'] = options['zmuser']
             if (not options.get('password')) and options.get('zmpassword'):
                 options['password'] = options['zmpassword']
-            self.api_opts = APIOptions(**options)
+            self.api_opts = APIOptions(**
+                                       {k: v for k, v in options.items() if k in set(f.name for f in fields(APIOptions))})
         if force_api or force_db:
             if force_api and force_db:
                 logger.debug(f"'force_api' and 'force_db' were both passed")
@@ -242,7 +243,7 @@ class ZoneMinder:
                 if not self.authorized:
                     logger.error(f"You must be authorized to view/edit 'Events'!")
                     return
-                if self.auth_privileges.Events != 'View' and self.auth_privileges.Events != 'Edit':
+                if self.auth_privileges.Events == 'None':
                     logger.error(f"To access 'Events' user {self.user} must have a minimum of 'View' permissions for "
                                  f"'Events'. The current level is {self.auth_privileges.Events}")
                     return
@@ -278,6 +279,10 @@ class ZoneMinder:
         Given monitors are fairly static, a cache is maintained instead of querying every time. Use force_reload to force a refresh.
 
                         - options (dict, optional): Available fields::
+                                - 'id': string # specific monitor id to fetch
+                                - 'name': string # specific monitor name to fetch
+                                - 'enabled': boolean # if True will only pick enabled monitors
+
                                 - 'force_reload': boolean # if True refreshes monitors
 
                 Returns:
@@ -292,8 +297,8 @@ class ZoneMinder:
             method = 'get'
 
         if method == 'get':
-            restricted = self.auth_privileges.Monitors.split(',')
             if self.session.type == 'db':
+                restricted = self.auth_privileges.Monitors.split(',')
                 if not self.authorized:
                     logger.error(f"You must be authorized to view/edit 'Monitors'!")
                     return
@@ -301,18 +306,14 @@ class ZoneMinder:
                     logger.error(f"To access 'Monitors' user {self.user} must have a minimum of 'View' permissions for "
                                  f"'Monitors'. The current level is {self.auth_privileges.Monitors}")
                     return
-                if self.options.get('Id'):
-                    if str(self.options.get('Id')) in restricted:
-                        logger.error(f"Monitor {self.options.get('Id')} is in the restricted Id's for user {self.user}"
-                                     f" - UNAUTHORIZED!")
-                        return
-
+                if str(self.options.get('id')) in restricted:
+                    logger.error(f"Monitor {self.options.get('Id')} is in the restricted Id's for user {self.user}"
+                                 f" - UNAUTHORIZED!")
+                    return
 
             if options.get("force_reload") or not self.Monitors:
-                mons: list = Monitors(session=self.session, session_options=self.session.options)
+                mons: List[Union[ZMMonitor, Dict[str, str]]] = Monitors(session=self.session, session_options=self.session.options)
                 for mon in mons:
-                    # construct a new object on each iteration, otherwise it will just be a long
-                    # list of referenced objects
                     final: ZMMonitor = ZMMonitor()
                     if self.session.type == 'api':
                         mon: dict
@@ -326,7 +327,11 @@ class ZoneMinder:
                                 if attr.startswith('_') or not attr[0].isupper():
                                     continue
                                 setattr(final, attr, getattr(mon, attr))
-                    self.Monitors.append(final)
+                        else:
+                            logger.debug(f"Monitor {mon.Id} is in the restricted Id's ({restricted}) "
+                                         f"for user {self.user}, skipping...")
+                            final = None
+                    self.Monitors.append(final) if final else None
             return self.Monitors
         elif method == 'set':
             return None
@@ -439,14 +444,6 @@ class ZoneMinder:
             method = 'get'
 
         if method == 'get':
-            if self.session.type == 'db':
-                if not self.authorized:
-                    logger.error(f"You must be authorized to view/edit 'Servers'!")
-                    return
-                if self.auth_privileges.System != 'View' and self.auth_privileges.System != 'Edit':
-                    logger.error(f"To access 'Servers' user {self.user} must have a minimum of 'View' permissions for "
-                                 f"'System'. The current level is {self.auth_privileges.System}")
-                    return
             servers: list = Servers(session=self.session, session_options=self.session.options)
             for server in servers:
                 final: ZMServers = ZMServers()
@@ -462,7 +459,6 @@ class ZoneMinder:
                         setattr(final, attr, getattr(server, attr))
                 self.Servers.append(final)
             return self.Servers
-
 
 
     def zones(self, method=None, options=None) -> Optional[List[Optional[ZMZone]]]:
@@ -485,12 +481,16 @@ class ZoneMinder:
 
         if method == 'get':
             if self.session.type == 'db':
+                restricted = self.auth_privileges.Monitors.split(',')
                 if not self.authorized:
                     logger.error(f"You must be authorized to view/edit 'Zones'!")
                     return
-                if self.auth_privileges.System != 'View' and self.auth_privileges.System != 'Edit':
+                if self.auth_privileges.Monitors == 'None':
                     logger.error(f"To access 'Zones' user {self.user} must have a minimum of 'View' permissions for "
-                                 f"'System'. The current level is {self.auth_privileges.System}")
+                                 f"'Monitors'. The current level is {self.auth_privileges.Monitors}")
+                    return
+                if self.options.get('id') in restricted:
+                    logger.debug(f"Monitor Id: {self.options.get('id')} is restricted for user {self.user}")
                     return
             zones: list = Zones(session=self.session, session_options=self.session.options)
             for zone in zones:
@@ -501,6 +501,9 @@ class ZoneMinder:
                         setattr(final, k, v)
                 elif self.session.type == 'db':
                     zone: ZMZone
+                    if zone.MonitorId in restricted:
+                        logger.debug(f"Monitor Id: {zone.MonitorId} is restricted for user {self.user}, skipping...")
+                        continue
                     for attr in dir(zone):
                         if attr.startswith('_') or not attr[0].isupper():
                             continue
@@ -574,7 +577,7 @@ class ZoneMinder:
                 if not self.authorized:
                     logger.error(f"You must be authorized to view/edit 'TriggersX10'!")
                     return
-                if self.auth_privileges.System != 'View' and self.auth_privileges.System != 'Edit':
+                if self.auth_privileges.System == 'None':
                     logger.error(f"To access 'TriggersX10' user {self.user} must have a minimum of 'View' permissions "
                                  f"for 'System'. The current level is {self.auth_privileges.System}")
                     return
@@ -619,10 +622,11 @@ class ZoneMinder:
                 if not self.authorized:
                     logger.error(f"You must be authorized to view/edit 'States'!")
                     return
-                if self.auth_privileges.System != 'View' and self.auth_privileges.System != 'Edit':
+                if self.auth_privileges.System == 'None':
                     logger.error(f"To access 'States' user {self.user} must have a minimum of 'View' permissions for "
                                  f"'System'. The current level is {self.auth_privileges.System}")
                     return
+
             states: list = States(session=self.session, options=options, session_options=self.session.options)
             for state in states:
                 final: ZMState = ZMState()
@@ -665,9 +669,9 @@ class ZoneMinder:
         if method == 'get':
             if self.session.type == 'db':
                 if not self.authorized:
-                    logger.error(f"You must be authorized to view/edit 'Users'!")
+                    logger.error(f"You must authorize yourself to the DB interface")
                     return
-                if self.auth_privileges.System != 'View' and self.auth_privileges.System != 'Edit':
+                if self.auth_privileges.System == 'None':
                     logger.error(f"To access 'Users' user {self.user} must have a minimum of 'View' permissions for "
                                  f"'System'. The current level is {self.auth_privileges.System}")
                     return

@@ -31,8 +31,7 @@ from requests.packages.urllib3 import disable_warnings
 from requests.exceptions import HTTPError
 from urllib3.exceptions import InsecureRequestWarning
 
-from src.models import DBOptions, APIOptions
-
+from src.dataclasses import DBOptions, APIOptions
 
 logger = logging.getLogger('ZMAPI')
 logger.setLevel(logging.DEBUG)

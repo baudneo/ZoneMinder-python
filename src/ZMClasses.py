@@ -8,8 +8,7 @@ from sqlalchemy.orm import Session, Query
 
 from src.ZMSession import ZMSession
 from src.utils import str2bool
-from src.dataclasses import ZMEvent, ZMState, ZMZone, ZMConfig, ZMStorage, ZMLogs, ZMUsers
-from src.models import DBOptions, APIOptions
+from src.dataclasses import ZMEvent, ZMState, ZMZone, ZMConfig, ZMStorage, ZMLogs, ZMUsers, DBOptions, APIOptions
 
 logger = logging.getLogger('ZMClasses')
 logger.setLevel(logging.DEBUG)
@@ -30,7 +29,6 @@ def Servers(
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Servers' via SQL")
         db_sess: Optional[Session] = None
-        ret = None
         with session.db_sess() as db_sess:
             servers_dataclass: ZMState = session.db.Servers
             ret = db_sess.query(servers_dataclass).all()
@@ -253,15 +251,26 @@ def Storage(
                 ret = ret.filter(db_storage.Enabled == 1)
             ret = ret.all()
 
-
     elif session and session.type == 'api':
         logger.info(f"Retrieving 'Storage' via API")
         url = f"{session_options.api_url}/storage.json"
         r = session.api_sess.make_request(url=url)
-        api_storage = r.get('storage')
-        ret = []
-        for storage_item in api_storage:
-            ret.append(storage_item)
+        ret = r.get('storage')
+        if options.get('id'):
+            ret = [x for x in ret if x.get('Storage').get('Id') == str(options.get('id'))]
+        if options.get('name'):
+            ret = [x for x in ret if x.get('Storage').get('Name') == options.get('name')]
+        if options.get('path'):
+            ret = [x for x in ret if x.get('Storage').get('Path') == options.get('path')]
+        if options.get('server_id'):
+            ret = [x for x in ret if x.get('Storage').get('ServerId') == str(options.get('server_id'))]
+        if options.get('used_disk_space', {}).get('descending'):
+            ret = sorted(ret, key=lambda x: x.get('Storage').get('DiskSpace'), reverse=True)
+        if options.get('used_disk_space', {}).get('ascending'):
+            ret = sorted(ret, key=lambda x: x.get('Storage').get('DiskSpace'))
+        if options.get('enabled'):
+            ret = [x for x in ret if x.get('Storage').get('Enabled') is True]
+
     return ret
 
 
@@ -327,12 +336,13 @@ def Zones(
         options: dict = None,
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
+    if options is None:
+        options = {}
     zones: list = []
     ret: Union[List, Query] = []
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Zones' via SQL")
         db_sess: Optional[Session] = None
-        ret = None
         with session.db_sess() as db_sess:
             db_zones: ZMZone = session.db.Zones
             ret = db_sess.query(db_zones)
@@ -349,10 +359,16 @@ def Zones(
         logger.info(f"Retrieving 'Zones' via API")
         url = f"{session_options.api_url}/zones/index.json"
         r = session.api_sess.make_request(url=url)
-        api_zones = r.get('zones')
-        ret = []
-        for zone in api_zones:
-            ret.append(zone)
+        ret = r.get('zones')
+        if options.get('id'):
+            ret = [x for x in ret if x.get('Zone').get('Id') == str(options.get('id'))]
+        if options.get('monitor_id'):
+            ret = [x for x in ret if x.get('Zone').get('MonitorId') == str(options.get('monitor_id'))]
+        if options.get('name'):
+            ret = [x for x in ret if x.get('Zone').get('Name') == str(options.get('name'))]
+        if options.get('type'):
+            ret = [x for x in ret if x.get('Zone').get('Type') == str(options.get('type'))]
+
     return ret
 
 
@@ -362,37 +378,32 @@ def States(
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
     states: list = []
+    ret: Union[List, Query] = []
     if session and session.type == 'db':
         logger.info(f"Retrieving 'States' via SQL")
         db_sess: Optional[Session] = None
-        ret: Optional[Query] = None
         with session.db_sess() as db_sess:
-            # Id: int = None
-            # Name: str = None
-            # Definition: str = None
-            # IsActive: int = None
             db_states: ZMState = session.db.States
             ret = db_sess.query(db_states)
             if options.get('id'):
                 ret = ret.filter(db_states.Id == options.get('id'))
             if options.get('name'):
                 ret = ret.filter(db_states.Name == options.get('name'))
-            # if options.get('Definition'):
-            #     ret = ret.filter(db_states.Definition == options.get('Definition'))
             if options.get('current'):
                 ret = ret.filter(db_states.IsActive == 1)
-
-        return ret
 
     elif session and session.type == 'api':
         logger.info(f"Retrieving 'States' via API")
         url = f"{session_options.api_url}/states.json"
         r = session.api_sess.make_request(url=url)
-        api_states = r.get('states')
-        ret = []
-        for state in api_states:
-            ret.append(state)
-        return ret
+        ret = r.get('states')
+        if options.get('id'):
+            ret = [x for x in ret if x.get('State').get('Id') == str(options.get('id'))]
+        if options.get('name'):
+            ret = [x for x in ret if x.get('State').get('Name') == str(options.get('name'))]
+        if options.get('current'):
+            ret = [x for x in ret if x.get('State').get('IsActive') == '1']
+    return ret
 
 
 def Users(
