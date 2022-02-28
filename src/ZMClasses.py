@@ -3,12 +3,14 @@ import warnings
 from typing import Optional, Union, Dict, Any, List
 
 import dateparser
+import sqlalchemy
 from sqlalchemy import asc, desc, and_
 from sqlalchemy.orm import Session, Query
 
 from src.ZMSession import ZMSession
 from src.utils import str2bool
-from src.dataclasses import ZMEvent, ZMState, ZMZone, ZMConfig, ZMStorage, ZMLogs, ZMUsers, DBOptions, APIOptions
+from src.dataclasses import ZMEvent, ZMState, ZMZone, ZMConfig, ZMStorage, ZMLogs, ZMUsers, DBOptions, APIOptions, \
+    ZMGroups
 
 logger = logging.getLogger('ZMClasses')
 logger.setLevel(logging.DEBUG)
@@ -66,22 +68,50 @@ def MontageLayouts(
 
 def Groups(
         session: ZMSession = None,
+        options=None,
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
 ):
+    if options is None:
+        options = {}
     groups: list = []
     ret: Union[List, Query] = []
 
     if session and session.type == 'db':
         logger.info(f"Retrieving 'Groups' via SQL")
         db_sess: Optional[Session] = None
-        ret = None
         with session.db_sess() as db_sess:
-            groups_dataclass: ZMState = session.db.Groups
-            ret = db_sess.query(groups_dataclass).all()
+            groups_dataclass: ZMGroups = session.db.Groups
+            ret = db_sess.query(groups_dataclass)
+            if options.get('id'):
+                ret = ret.filter(groups_dataclass.Id == options.get('id'))
+            if options.get('name'):
+                ret = ret.filter(groups_dataclass.Name == options.get('name'))
+            if options.get('parent_id'):
+                ret = ret.filter(groups_dataclass.ParentId == options.get('parent_id'))
 
     elif session and session.type == 'api':
         logger.info(f"Retrieving 'Groups' via API")
-        url = f"{session_options.api_url}/groups.json"
+        url_filter: str = ''
+        params: dict = {}
+
+        if options.get('id'):
+            url_filter += f"/Id=:{options.get('event_id')}"
+        if options.get('parent_id'):
+            url_filter += f"/ParentId=:{options.get('parent_id')}"
+        if options.get('name'):
+            url_filter += f"/Name=:{options.get('name')}"
+        # catch all
+        if options.get('raw_filter'):
+            url_filter += options.get('raw_filter')
+        # print ('URL filter: ',url_filter)
+        url_prefix = f'{session_options.api_url}/groups/index'
+        url = f'{url_prefix}{url_filter}.json'
+        params = {
+            'sort': 'Id',
+            'direction': 'desc',
+        }
+
+        # url = f"{session_options.api_url}/groups.json"
         r = session.api_sess.make_request(url=url)
         api_groups = r.get('groups')
         ret = []
@@ -278,17 +308,57 @@ def Configs(
         session: ZMSession = None,
         options=None,
         session_options: Optional[Union[DBOptions, APIOptions]] = None,
+        method=None,
 ):
+    if method is None:
+        method = 'get'
     configs: list = []
-    ret: Union[List, Query] = []
-    if session and session.type == 'db':
-        logger.info(f"Retrieving 'Configs' via SQL")
+    if method == 'get':
+        ret: Union[List, Query] = []
+        if session and session.type == 'db':
+            logger.info(f"Retrieving 'Configs' via SQL")
+            db_sess: Optional[Session] = None
+            with session.db_sess() as db_sess:
+                configs_dataclass: ZMConfig = session.db.Config
+                ret = db_sess.query(configs_dataclass)
+                if options.get('id'):
+                    ret = ret.filter(configs_dataclass.Id == options.get('id'))
+                if options.get('name'):
+                    ret = ret.filter(configs_dataclass.Name == options.get('name'))
+                if options.get('name_contains'):
+                    reg_text: str = r".*{}.*".format(options.get('name_contains'))
+                    # reg_text = options.get('name_contains')
+                    print(f"Doing Config name_contains with {reg_text}")
+                    ret = ret.filter(configs_dataclass.Name.op('regexp')(reg_text))
+                    # ret = ret.filter(configs_dataclass.Name.like(reg_text))
+                if options.get('category'):
+                    ret = ret.filter(configs_dataclass.Category == options.get('category'))
+                if options.get('type'):
+                    ret = ret.filter(configs_dataclass.Type == options.get('type'))
+                ret = ret.all()
+        elif session and session.type == 'api':
+            logger.info(f"Retrieving 'Configs' via API")
+            url = f"{session_options.api_url}/configs/index.json"
+            r = session.api_sess.make_request(url=url)
+            # configs or config - config when viewing a single config
+            ret = r.get('configs')
+            if options.get('id'):
+                ret = [x for x in ret if x.get('Config').get('Id') == options.get('id')]
+            if options.get('name'):
+                ret = [x for x in ret if x.get('Config').get('Name') == options.get('name')]
+            if options.get('category'):
+                ret = [x for x in ret if x.get('Config').get('Category') == options.get('category')]
+            if options.get('type'):
+                ret = [x for x in ret if x.get('Config').get('Type') == options.get('type')]
+        return ret
+    elif method == 'set':
+        logger.info(f"Setting 'Configs' via SQL")
         db_sess: Optional[Session] = None
         with session.db_sess() as db_sess:
             configs_dataclass: ZMConfig = session.db.Config
             ret = db_sess.query(configs_dataclass)
             if options.get('id'):
-                ret = ret.filter(configs_dataclass.Id == options.get('id'))
+                ret = ret.filter(configs_dataclass.Id == int(options.get('id')))
             if options.get('name'):
                 ret = ret.filter(configs_dataclass.Name == options.get('name'))
             if options.get('category'):
@@ -296,15 +366,8 @@ def Configs(
             if options.get('type'):
                 ret = ret.filter(configs_dataclass.Type == options.get('type'))
             ret = ret.all()
-    elif session and session.type == 'api':
-        logger.info(f"Retrieving 'Configs' via API")
-        url = f"{session_options.api_url}/configs.json"
-        r = session.api_sess.make_request(url=url)
-        api_configs = r.get('configs')
-        ret = []
-        for config in api_configs:
-            ret.append(config)
-    return ret
+    else:
+        raise ValueError(f"Invalid method '{method}'")
 
 
 def Monitors(
@@ -561,6 +624,13 @@ def Events(
                 logger.debug(f"Using detected objects to filter SQL")
                 # MySQL/MariaDB regexp, Postgres would be op('~')
                 raw_data = raw_data.filter(db_events.Notes.op('regexp')(r'.*:detected:.*'))
+            num_events = 0
+            if options.get('max_events'):
+                num_events = options.get('max_events')
+            if options.get('limit'):
+                num_events = options.get('limit')
+            if num_events:
+                raw_data = raw_data.limit(num_events)
             events = raw_data.all()  # return a list of matches
         except Exception as exc:
             logger.exception(f"Error querying DB for 'Events': {exc}", exc_info=True)

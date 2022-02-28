@@ -397,6 +397,9 @@ If you do not supply it an event_id it will use the global event id.
                     raise ValueError("RELOGIN")
                 else:
                     # ZM returns 0 byte body if index not found (no frame ID or out of bounds)
+                    # When using put to update Configs success returns a 0 byte body?
+                    if type_action == "put":
+                        return r
                     logger.debug(f"{lp} raising BAD_IMAGE ValueError as Content-Length:0 (OOB or bad frame ID)")
                     raise ValueError("BAD_IMAGE")
                 # return r.text
